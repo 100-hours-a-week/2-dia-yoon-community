@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('users', JSON.stringify(users));
 
         // 로그인 페이지로 이동
-        window.location.href = 'login.html';
+        window.location.href = '../login/login.html';
     });
 
     // 초기 상태 체크

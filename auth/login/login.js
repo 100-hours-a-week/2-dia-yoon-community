@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (user) {
             // 로그인 성공 시 현재 사용자 정보 저장
             localStorage.setItem('currentUser', JSON.stringify(user));
-            window.location.href = './html/index.html'; 
+            window.location.href = '../../post/index/index.html'; 
         } else {
             // 로그인 실패
             emailHelper.textContent = '* 아이디 또는 비밀번호를 확인해주세요';
