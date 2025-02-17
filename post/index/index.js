@@ -1,4 +1,3 @@
-// index.js
 document.addEventListener('DOMContentLoaded', function() {
     // 로그인 체크
     function checkLogin() {
@@ -29,6 +28,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 profileDropdown.src = currentUser.profileImage;
             }
         }
+    }
+
+    // 게시글 목록 표시 함수
+    function displayPosts() {
+        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+        const postList = document.querySelector('.post-list');
+        postList.innerHTML = ''; // 기존 목록 초기화
+
+        posts.forEach(post => {
+            const postElement = document.createElement('div');
+            postElement.className = 'post-item';
+            postElement.dataset.postId = post.id;
+            
+            postElement.innerHTML = `
+                <h2>${post.title}</h2>
+                <div class="post-info">
+                    <span>좋아요 ${post.likes} 댓글 ${post.comments} 조회수 ${post.views}</span>
+                    <span class="date">${new Date(post.createdAt).toLocaleString()}</span>
+                </div>
+                <div class="post-author">
+                    <img src="${post.authorImage || '../images/default-profile.png'}" alt="프로필" class="author-image">
+                    <span>${post.author}</span>
+                </div>
+            `;
+            
+            postList.appendChild(postElement);
+        });
     }
 
     // 드롭다운 메뉴 토글
@@ -83,6 +109,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 초기화
-    displayUserInfo();
+    // 초기화 함수
+    function initialize() {
+        displayUserInfo();
+        displayPosts();
+    }
+
+    // 초기화 실행
+    initialize();
 });
