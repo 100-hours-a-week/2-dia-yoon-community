@@ -1,142 +1,151 @@
-// detail.js
 document.addEventListener('DOMContentLoaded', function() {
-    // 요소 선택
+    // DOM 요소 가져오기
+    const modifyForm = document.getElementById('modifyForm');
+    const titleInput = document.getElementById('title');
+    const contentInput = document.getElementById('content');
+    const imageInput = document.getElementById('image');
+    const categorySelect = document.getElementById('category');
+    const selectedFile = document.querySelector('.selected-file');
+    const titleCounter = document.querySelector('.title-counter');
+    const currentImage = document.getElementById('currentImage');
     const profileDropdown = document.getElementById('profileDropdown');
     const menuList = document.getElementById('menuList');
-    const backButton = document.querySelector('.back-btn');
-    const postActionButtons = document.querySelectorAll('.post-actions .action-btn');
-    const deleteModal = document.getElementById('deleteModal');
-    const deleteCommentModal = document.getElementById('deleteCommentModal');
-    const commentForm = document.getElementById('commentForm');
-    const commentInput = document.getElementById('commentInput');
-    const commentSubmitBtn = document.getElementById('commentSubmitBtn');
-    const commentList = document.querySelector('.comment-list');
+    const backBtn = document.querySelector('.back-btn');
 
-    let editingCommentId = null;
+    // URL에서 게시글 ID 가져오기
+    const urlParams = new URLSearchParams(window.location.search);
+    const postId = urlParams.get('id');
 
-    // 뒤로가기
-    backButton.addEventListener('click', function() {
+    // 게시글 수정 성공 시 이동할 상세 페이지 URL 생성
+    const detailPageUrl = `/post/${postId}`;
+
+    // 뒤로가기 버튼 클릭 시 목록 페이지로 이동
+    backBtn.addEventListener('click', function() {
         window.location.href = 'index.html';
     });
 
-    // 게시글 수정/삭제
-    postActionButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            if (this.textContent === '수정') {
-                window.location.href = 'modify.html';
-            } else if (this.textContent === '삭제') {
-                deleteModal.classList.add('show');
-                document.body.style.overflow = 'hidden';
+    // 프로필 드롭다운 메뉴 토글
+    profileDropdown.addEventListener('click', function(e) {
+        e.stopPropagation();
+        menuList.classList.toggle('show');
+    });
+
+    // 다른 곳 클릭시 드롭다운 메뉴 닫기
+    document.addEventListener('click', function(e) {
+        if (!profileDropdown.contains(e.target)) {
+            menuList.classList.remove('show');
+        }
+    });
+
+    // 제목 글자수 카운터 및 제한
+    titleInput.addEventListener('input', function() {
+        const length = this.value.length;
+        titleCounter.textContent = `${length}/26`;
+        
+        // 26자 초과 입력 방지
+        if (length > 26) {
+            this.value = this.value.substring(0, 26);
+            titleCounter.textContent = '26/26';
+            alert('제목은 26자를 초과할 수 없습니다.');
+        }
+        
+        // 글자수에 따른 스타일 변경
+        titleCounter.style.color = length >= 26 ? '#ff4444' : '#666';
+    });
+
+    // 기존 게시글 데이터 불러오기
+    async function loadPostData() {
+        try {
+            // API 호출을 통해 기존 게시글 데이터를 가져오는 로직
+            const response = await fetch(`/api/posts/${postId}`);
+            if (!response.ok) throw new Error('게시글을 불러오는데 실패했습니다.');
+            
+            const data = await response.json();
+            
+            // 폼에 데이터 설정
+            categorySelect.value = data.category;
+            titleInput.value = data.title;
+            contentInput.value = data.content;
+            
+            // 글자수 카운터 업데이트
+            titleCounter.textContent = `${data.title.length}/26`;
+            
+            // 기존 이미지가 있다면 표시
+            if (data.imageUrl) {
+                currentImage.innerHTML = `
+                    <img src="${data.imageUrl}" alt="현재 이미지">
+                `;
             }
-        });
-    });
-
-    // 댓글 입력 처리
-    commentInput.addEventListener('input', function() {
-        if (this.value.trim()) {
-            commentSubmitBtn.classList.remove('disabled');
-            commentSubmitBtn.style.backgroundColor = '#7F6AEE';
-        } else {
-            commentSubmitBtn.classList.add('disabled');
-            commentSubmitBtn.style.backgroundColor = '#ACA0EB';
+        } catch (error) {
+            console.error('Error:', error);
+            alert('게시글 데이터를 불러오는데 실패했습니다.');
         }
-    });
-
-    // 댓글 등록/수정
-    commentForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const text = commentInput.value.trim();
-        
-        if (!text) return;
-
-        if (editingCommentId) {
-            // 댓글 수정 처리
-            const commentElement = document.querySelector(`[data-comment-id="${editingCommentId}"]`);
-            const commentTextElement = commentElement.querySelector('.comment-text');
-            commentTextElement.textContent = text;
-            
-            editingCommentId = null;
-            commentSubmitBtn.textContent = '댓글 등록';
-            commentElement.classList.remove('editing');
-        } else {
-            // 새 댓글 추가
-            const newComment = createCommentElement({
-                id: Date.now(),
-                text: text,
-                author: '데이 작성자 1',
-                date: new Date().toISOString()
-            });
-            commentList.appendChild(newComment);
-        }
-
-        // 폼 초기화
-        commentInput.value = '';
-        commentSubmitBtn.classList.add('disabled');
-        commentSubmitBtn.style.backgroundColor = '#ACA0EB';
-    });
-
-    // 댓글 요소 생성
-    function createCommentElement(comment) {
-        const div = document.createElement('div');
-        div.className = 'comment-item';
-        div.dataset.commentId = comment.id;
-        
-        div.innerHTML = `
-            <div class="comment-author">
-                <img src="../images/default-profile.png" alt="댓글 작성자" class="comment-author-image">
-                <span class="comment-author-name">${comment.author}</span>
-                <span class="comment-date">${new Date(comment.date).toLocaleString()}</span>
-            </div>
-            <p class="comment-text">${comment.text}</p>
-            <div class="comment-actions">
-                <button class="action-btn edit-btn">수정</button>
-                <button class="action-btn delete-btn">삭제</button>
-            </div>
-        `;
-
-        // 수정 버튼
-        div.querySelector('.edit-btn').addEventListener('click', function() {
-            editingCommentId = comment.id;
-            commentInput.value = comment.text;
-            commentSubmitBtn.textContent = '댓글 수정';
-            commentSubmitBtn.classList.remove('disabled');
-            commentSubmitBtn.style.backgroundColor = '#7F6AEE';
-            div.classList.add('editing');
-            commentInput.focus();
-        });
-
-        // 삭제 버튼
-        div.querySelector('.delete-btn').addEventListener('click', function() {
-            deleteCommentModal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-            
-            // 삭제 확인 이벤트 설정
-            const confirmDelete = function() {
-                div.remove();
-                deleteCommentModal.classList.remove('show');
-                document.body.style.overflow = '';
-                deleteCommentModal.querySelector('.confirm-btn').removeEventListener('click', confirmDelete);
-            };
-            
-            deleteCommentModal.querySelector('.confirm-btn').addEventListener('click', confirmDelete);
-        });
-
-        return div;
     }
 
-    // 모달 닫기 버튼들
-    document.querySelectorAll('.modal-overlay .cancel-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            this.closest('.modal-overlay').classList.remove('show');
-            document.body.style.overflow = '';
-        });
+    // 이미지 파일 선택 시 파일명 표시 및 미리보기
+    imageInput.addEventListener('change', function(e) {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            selectedFile.textContent = file.name;
+            
+            // 이미지 미리보기 생성
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImage.innerHTML = `
+                    <img src="${e.target.result}" alt="선택된 이미지">
+                `;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            selectedFile.textContent = '';
+        }
     });
 
-    // 게시글 삭제 모달 확인 버튼
-    deleteModal.querySelector('.confirm-btn').addEventListener('click', function() {
-        // TODO: 게시글 삭제 API 호출
-        deleteModal.classList.remove('show');
-        document.body.style.overflow = '';
-        window.location.href = 'index.html';
+    // 폼 제출 처리
+    modifyForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        // 입력값 검증
+        if (!titleInput.value.trim() || !contentInput.value.trim() || !categorySelect.value) {
+            alert('카테고리, 제목, 내용을 모두 입력해주세요.');
+            return;
+        }
+
+        if (titleInput.value.length > 26) {
+            alert('제목은 26자를 초과할 수 없습니다.');
+            return;
+        }
+
+        try {
+            // FormData 객체 생성
+            const formData = new FormData();
+            formData.append('category', categorySelect.value);
+            formData.append('title', titleInput.value);
+            formData.append('content', contentInput.value);
+            if (imageInput.files[0]) {
+                formData.append('image', imageInput.files[0]);
+            }
+
+            // API 호출을 통한 데이터 전송
+            const response = await fetch(`/api/posts/${postId}`, {
+                method: 'PUT',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('게시글 수정에 실패했습니다.');
+            }
+
+            alert('게시글이 성공적으로 수정되었습니다.');
+            // 게시글 상세 페이지로 이동
+            window.location.href = detailPageUrl;
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert(error.message);
+        }
     });
+
+    // 페이지 로드 시 기존 데이터 불러오기
+    loadPostData();
 });
