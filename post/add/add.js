@@ -81,31 +81,39 @@ document.addEventListener('DOMContentLoaded', function() {
     // 폼 제출 시 데이터 저장
     postForm.addEventListener('submit', function(event) {
         event.preventDefault();
-
+    
         const title = titleInput.value.trim();
         const content = contentTextarea.value.trim();
-
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    
         if (!title || !content) {
             helperText.textContent = '* 제목, 내용을 모두 작성해주세요';
             helperText.style.color = 'red';
             return;
         }
-
+    
         const postData = {
+            id: Date.now(), // 고유 ID 생성
             title,
             content,
             image: uploadedImage,
             createdAt: new Date().toISOString(),
+            author: currentUser.nickname, // 작성자 닉네임
+            authorImage: currentUser.profileImage, // 작성자 프로필 이미지
+            likes: 0,
+            comments: 0,
+            views: 0
         };
-
+    
         // localStorage에 저장
         const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-        posts.push(postData);
+        posts.unshift(postData); // 새 게시글을 배열 앞에 추가
         localStorage.setItem('posts', JSON.stringify(posts));
-
+    
         // 메인 페이지로 이동
-        window.location.href = 'index.html';
+        window.location.href = '../index/index.html';
     });
 
     updateSubmitButton(); // 초기 상태 설정
 });
+
