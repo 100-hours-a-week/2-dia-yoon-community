@@ -1,4 +1,4 @@
-<!-- 회원정보 수정 페이지 -->
+<!-- profile.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -10,39 +10,61 @@
 <body>
     <header>
         <h1>아무 말 대잔치</h1>
-        <div class="profile-menu">
-            <img src="profile-icon.png" alt="프로필 아이콘" class="profile-icon">
-            <ul class="dropdown">
-                <li>회원정보수정</li>
-                <li>비밀번호수정</li>
-                <li>로그아웃</li>
-            </ul>
-        </div>
-    </header>
+            <div class="profile-container">
+                <img src="../images/default-profile.png" alt="프로필" class="profile-image" id="profileDropdown">
+                <ul class="menu-list" id="menuList">
+                    <li class="active">회원정보수정</li>
+                    <li>비밀번호수정</li>
+                    <li>로그아웃</li>
+                </ul>
+            </div>
+        </header>
 
-    <main>
-        <h2>회원정보수정</h2>
-        <div class="profile-section">
-            <div class="profile-image">
-                <img src="default-profile.png" alt="프로필 사진">
-                <button class="change-button">변경</button>
+        <div class="main-content">
+            <h2 class="sub-title">회원정보수정</h2>
+            
+            <div class="profile-image-section">
+                <div class="profile-image-edit">
+                    <span class="change-text">변경</span>
+                </div>
             </div>
 
-            <form class="profile-form">
-                <label for="email">이메일</label>
-                <input type="email" id="email" value="startupcode@gmail.com" disabled>
+            <div class="form-section">
+                <div class="input-group">
+                    <label>이메일</label>
+                    <input type="email" value="startupcode@gmail.com" readonly>
+                </div>
 
-                <label for="nickname">닉네임</label>
-                <input type="text" id="nickname" placeholder="닉네임 입력">
+                <div class="input-group">
+                    <label>닉네임</label>
+                    <input type="text" id="nickname" placeholder="스타트업코드" maxlength="10">
+                    <span class="helper-text" id="nicknameHelper"></span>
+                </div>
 
-                <p class="helper-text"></p>
+                <button class="submit-btn" id="submitBtn">수정하기</button>
+                <button class="withdraw-btn" id="withdrawBtn">회원 탈퇴</button>
+            </div>
 
-                <button type="button" class="edit-button">수정하기</button>
-                <button type="button" class="withdraw-button">회원 탈퇴</button>
-                <button type="submit" class="save-button">수정완료</button>
-            </form>
+            <div class="complete-section">
+                <button class="complete-btn">수정완료</button>
+            </div>
         </div>
-    </main>
+    </div>
+
+    <!-- 토스트 메시지 -->
+    <div class="toast" id="toast">수정완료</div>
+
+    <!-- 회원 탈퇴 모달 -->
+    <div class="modal" id="withdrawModal">
+        <div class="modal-content">
+            <h2>회원탈퇴 하시겠습니까?</h2>
+            <p>작성된 게시글과 댓글은 삭제됩니다.</p>
+            <div class="modal-buttons">
+                <button class="modal-cancel">취소</button>
+                <button class="modal-confirm">확인</button>
+            </div>
+        </div>
+    </div>
 
     <script src="profile.js"></script>
 </body>
