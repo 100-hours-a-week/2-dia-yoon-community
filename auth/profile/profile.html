@@ -1,0 +1,49 @@
+<!-- 회원정보 수정 페이지 -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원정보수정</title>
+    <link rel="stylesheet" href="../css/profile.css">
+</head>
+<body>
+    <header>
+        <h1>아무 말 대잔치</h1>
+        <div class="profile-menu">
+            <img src="profile-icon.png" alt="프로필 아이콘" class="profile-icon">
+            <ul class="dropdown">
+                <li>회원정보수정</li>
+                <li>비밀번호수정</li>
+                <li>로그아웃</li>
+            </ul>
+        </div>
+    </header>
+
+    <main>
+        <h2>회원정보수정</h2>
+        <div class="profile-section">
+            <div class="profile-image">
+                <img src="default-profile.png" alt="프로필 사진">
+                <button class="change-button">변경</button>
+            </div>
+
+            <form class="profile-form">
+                <label for="email">이메일</label>
+                <input type="email" id="email" value="startupcode@gmail.com" disabled>
+
+                <label for="nickname">닉네임</label>
+                <input type="text" id="nickname" placeholder="닉네임 입력">
+
+                <p class="helper-text"></p>
+
+                <button type="button" class="edit-button">수정하기</button>
+                <button type="button" class="withdraw-button">회원 탈퇴</button>
+                <button type="submit" class="save-button">수정완료</button>
+            </form>
+        </div>
+    </main>
+
+    <script src="profile.js"></script>
+</body>
+</html>

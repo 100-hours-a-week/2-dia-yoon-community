@@ -69,9 +69,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const user = validateLogin(email, password);
         
         if (user) {
-            // 로그인 성공
-            console.log('로그인 성공:', user);
-            window.location.href = 'post.html'; // 게시글 목록 페이지로 이동
+            // 로그인 성공 시 현재 사용자 정보 저장
+            localStorage.setItem('currentUser', JSON.stringify(user));
+            window.location.href = './html/index.html'; 
         } else {
             // 로그인 실패
             emailHelper.textContent = '* 아이디 또는 비밀번호를 확인해주세요';
