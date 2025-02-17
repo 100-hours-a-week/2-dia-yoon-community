@@ -1,4 +1,3 @@
-// login.js
 document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.querySelector('.login-form');
     const emailInput = document.getElementById('email');
@@ -15,8 +14,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 로그인 검증 함수
     function validateLogin(email, password) {
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        return users.find(user => user.email === email && user.password === password);
+        try {
+            // localStorage 디버깅
+            console.log('현재 저장된 users:', localStorage.getItem('users'));
+            
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            console.log('파싱된 users:', users);
+            
+            const user = users.find(user => user.email === email && user.password === password);
+            console.log('찾은 user:', user);
+            
+            if (user) {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('userEmail', email);
+                return user;
+            }
+            return null;
+        } catch (error) {
+            console.error('로그인 검증 중 에러 발생:', error);
+            throw error; // 에러를 상위로 전달
+        }
     }
 
     // 버튼 상태 업데이트
@@ -61,22 +78,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // 폼 제출 이벤트
     loginForm.addEventListener('submit', function(event) {
         event.preventDefault();
+        loginButton.disabled = true;
 
         const email = emailInput.value;
         const password = passwordInput.value;
 
-        // localStorage에서 사용자 확인
-        const user = validateLogin(email, password);
-        
-        if (user) {
-            // 로그인 성공 시 현재 사용자 정보 저장
-            localStorage.setItem('currentUser', JSON.stringify(user));
-            window.location.href = '../../post/index/index.html'; 
-        } else {
-            // 로그인 실패
-            emailHelper.textContent = '* 아이디 또는 비밀번호를 확인해주세요';
+        try {
+            // 로그인 시도 중인 정보 출력
+            console.log('로그인 시도:', { email, password });
+            
+            const user = validateLogin(email, password);
+            
+            if (user) {
+                console.log('로그인 성공:', user);
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                window.location.href = '../../post/index/index.html';
+            } else {
+                console.log('로그인 실패: 사용자를 찾을 수 없음');
+                emailHelper.textContent = '* 아이디 또는 비밀번호를 확인해주세요';
+                emailHelper.style.color = 'red';
+                passwordHelper.textContent = '';
+                loginButton.disabled = false;
+            }
+        } catch (error) {
+            console.error('로그인 처리 중 에러 발생:', error);
+            emailHelper.textContent = '* 로그인 중 오류가 발생했습니다';
             emailHelper.style.color = 'red';
-            passwordHelper.textContent = '';
+            loginButton.disabled = false;
         }
     });
 
