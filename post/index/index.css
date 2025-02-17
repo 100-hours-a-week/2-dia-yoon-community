@@ -9,61 +9,85 @@ body {
     background-color: #f5f5f5;
 }
 
-/* 헤더 */
+/* 헤더 스타일 */
 header {
-    background-color: white;
-    border-bottom: 1px solid #ddd;
-    padding: 1rem;
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
+    position: relative;
+    margin-bottom: 40px;
+    padding: 20px 0;
+    border-bottom: 1px solid #e0e0e0;
+    width: 100%;
 }
 
 header h1 {
-    font-size: 1.2rem;
-    text-align: center;
-    flex-grow: 1;
+    font-size: 20px;
+    font-weight: 500;
 }
 
 .profile-container {
-    width: 32px;
-    height: 32px;
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 .profile-image {
-    width: 100%;
-    height: 100%;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
-}
-
-/* 메인 컨텐츠 */
-main {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 1rem;
-}
-
-/* 환영 메시지 */
-.welcome-message {
-    text-align: center;
-    margin: 2rem 0;
-    position: relative;
-}
-
-.welcome-message p {
-    margin: 0.2rem 0;
-}
-
-.write-button {
-    position: absolute;
-    right: 0;
-    top: 0;
-    background-color: #7B68EE;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
     cursor: pointer;
+    object-fit: cover;
+}
+
+/* 드롭다운 메뉴 */
+.menu-list {
+    position: absolute;
+    top: 45px;
+    right: 0;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    width: 150px;
+    padding: 8px 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: none;
+    z-index: 1000;
+}
+
+.menu-list.show {
+    display: block;
+}
+
+.menu-list li {
+    list-style: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.menu-list li:hover {
+    background-color: #f5f5f5;
+}
+
+/* 반응형 스타일 */
+@media (max-width: 480px) {
+    .container {
+        padding: 0;
+    }
+    
+    .main-content {
+        padding: 0 16px;
+    }
+    
+    header h1 {
+        font-size: 18px;
+    }
+    
+    .profile-container {
+        right: 16px;
+    }
 }
 
 /* 게시글 목록 */
