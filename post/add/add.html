@@ -1,49 +1,49 @@
-<!-- 게시물 추가 기능 --> 
+<!-- add.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>게시글 작성 - 아무 말 대잔치</title>
-    <link rel="stylesheet" href="add.css">
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>게시글 작성 - 아무 말 대잔치</title>
+   <link rel="stylesheet" href="add.css">
 </head>
 <body>
-    <header>
-        <h1>아무 말 대잔치</h1>
-            <div class="profile-container">
-                <img src="../images/default-profile.png" alt="프로필" class="profile-image" id="profileDropdown">
-                <ul class="menu-list" id="menuList">
-                    <li class="active">회원정보수정</li>
-                    <li>비밀번호수정</li>
-                    <li>로그아웃</li>
-                </ul>
-            </div>
-    </header>
+   <header>
+       <h1>아무 말 대잔치</h1>
+           <div class="profile-container">
+               <img src="../images/default-profile.png" alt="프로필" class="profile-image" id="profileDropdown">
+               <ul class="menu-list" id="menuList">
+                   <li class="active">회원정보수정</li>
+                   <li>비밀번호수정</li>
+                   <li>로그아웃</li>
+               </ul>
+           </div>
+   </header>
 
-    <main>
-        <h2>게시글 작성</h2>
-        <form class="post-form">
-            <div class="input-group">
-                <label>제목<span class="required">*</span></label>
-                <input type="text" placeholder="제목을 입력해주세요. (최대 26글자)" maxlength="26">
-            </div>
+   <main>
+       <h2>게시글 작성</h2>
+       <form class="post-form">
+           <div class="input-group">
+               <label>제목<span class="required">*</span></label>
+               <input type="text" id="title" placeholder="제목을 입력해주세요. (최대 26글자)" maxlength="26">
+           </div>
 
-            <div class="input-group">
-                <label>내용<span class="required">*</span></label>
-                <textarea placeholder="내용을 입력해주세요."></textarea>
-            </div>
+           <div class="input-group">
+               <label>내용<span class="required">*</span></label>
+               <textarea id="content" placeholder="내용을 입력해주세요."></textarea>
+           </div>
 
-            <div class="image-upload">
-                <label>이미지</label>
-                <div class="upload-container">
-                    <button type="button" class="attach-button">파일 선택</button>
-                    <span class="helper-text"></span>
-                </div>
-            </div>
+           <div class="image-upload">
+               <label>이미지</label>
+               <div class="upload-container">
+                   <button type="button" class="attach-button">파일 선택</button>
+                   <span class="helper-text"></span>
+               </div>
+           </div>
 
-            <button type="submit" class="submit-button" disabled>완료</button>
-        </form>
-    </main>
-    <script src="add.js"></script>
+           <button type="submit" class="submit-button">완료</button>
+       </form>
+   </main>
+   <script src="add.js"></script>
 </body>
 </html>
