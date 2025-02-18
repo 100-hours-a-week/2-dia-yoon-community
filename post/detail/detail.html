@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>게시글 상세</title>
+    <title>게시글 상세조회</title>
     <link rel="stylesheet" href="detail.css">
 </head>
 <body>
     <header>
         <div class="header-content">
             <button class="back-btn">←</button>
-            <div class="header-title">아무 말 대잔치</div>
+            <h1 class="header-title">아무 말 대잔치</h1>
             <div class="profile-container">
                 <img src="../images/default-profile.png" alt="프로필" class="profile-image" id="profileDropdown">
                 <ul class="menu-list" id="menuList">
@@ -25,12 +25,12 @@
     <main>
         <article class="post-detail">
             <div class="post-header">
-                <h1 class="post-title">제목 1</h1>
+                <h2 class="post-title">제목</h2>
                 <div class="post-meta">
                     <div class="author-info">
                         <img src="../images/default-profile.png" alt="작성자 프로필" class="author-image">
-                        <span class="author-name">데이 작성자 1</span>
-                        <span class="post-date">2021-01-01 00:00:00</span>
+                        <span class="author-name">작성자</span>
+                        <span class="post-date">작성일</span>
                     </div>
                     <div class="post-actions">
                         <button class="action-btn">수정</button>
@@ -41,103 +41,38 @@
 
             <div class="post-content">
                 <div class="post-image">
-                    <img src="../images/post-image.jpg" alt="게시글 이미지">
+                    <img src="../images/default-profile.png" alt="게시글 이미지">
                 </div>
-                <p class="post-text">
-                    우리은 애기개발자의 이야기이지라간, 싫은 항목 감수성 뜸들끓이고 뛰녔던다나, 우리는 애기의 세
-                    분들 명세를 했고 써여더 감었었군다. 책들은 상에돌로 프레임의 있었다, 그리센터 아가들 다 있
-                    겠고 지에서의 산요 잘된 산업 안에 고되었다. 상이들이 나뭇잎을 말했점되니 극서극 다치를 합터니하고, 것에
-                    내 화워히 삼은 조래적 되 메거가 것늘스다.
-                </p>
+                <p class="post-text">게시글 내용</p>
             </div>
 
             <div class="post-stats">
                 <div class="stat-box">
-                    <span class="stat-value" id="likeCount">123</span>
-                    <span class="stat-label">좋아요수</span>
+                    <span class="stat-value">0</span>
+                    <span class="stat-label">좋아요</span>
                 </div>
                 <div class="stat-box">
-                    <span class="stat-value" id="viewCount">123</span>
+                    <span class="stat-value">0</span>
                     <span class="stat-label">조회수</span>
                 </div>
                 <div class="stat-box">
-                    <span class="stat-value" id="commentCount">123</span>
+                    <span class="stat-value">0</span>
                     <span class="stat-label">댓글</span>
                 </div>
             </div>
 
             <div class="comment-section">
+                <div class="comment-form">
+                    <textarea placeholder="댓글을 작성해주세요" rows="3"></textarea>
+                    <button class="submit-btn">댓글 등록</button>
+                </div>
+
                 <div class="comment-list">
-                    <!-- 기존 댓글들이 여기에 표시됩니다 -->
-                </div>
-
-                <div class="comment-form" id="commentForm">
-                    <textarea placeholder="댓글을 남겨주세요!" rows="3" id="commentInput"></textarea>
-                    <button class="submit-btn disabled" id="commentSubmitBtn">댓글 등록</button>
-                </div>
-            </div>
-
-            <!-- 게시글 삭제 모달 -->
-            <div class="modal-overlay" id="deleteModal">
-                <div class="modal-content">
-                    <h2>게시글을 삭제하시겠습니까?</h2>
-                    <p>삭제한 내용은 복구 할 수 없습니다.</p>
-                    <div class="modal-buttons">
-                        <button class="modal-btn cancel-btn">취소</button>
-                        <button class="modal-btn confirm-btn">확인</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 댓글 삭제 모달 -->
-            <div class="modal-overlay" id="deleteCommentModal">
-                <div class="modal-content">
-                    <h2>댓글을 삭제하시겠습니까?</h2>
-                    <p>삭제한 내용은 복구 할 수 없습니다.</p>
-                    <div class="modal-buttons">
-                        <button class="modal-btn cancel-btn">취소</button>
-                        <button class="modal-btn confirm-btn">확인</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="comments-section">
-                <div class="comment-list">
-                    <!-- 댓글 아이템 -->
-                    <div class="comment-item">
-                        <div class="comment-author">
-                            <img src="../images/default-profile.png" alt="댓글 작성자" class="comment-author-image">
-                            <span class="comment-author-name">데이 작성자 1</span>
-                            <span class="comment-date">2021-01-01 00:00:00</span>
-                        </div>
-                        <p class="comment-text">댓글 내용</p>
-                        <div class="comment-actions">
-                            <button class="action-btn">수정</button>
-                            <button class="action-btn">삭제</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="comment-form" id="commentForm">
-                    <textarea placeholder="댓글을 남겨주세요!" rows="3" id="commentInput"></textarea>
-                    <button class="submit-btn disabled" id="commentSubmitBtn">댓글 등록</button>
-                </div>
-                
-                <!-- 댓글 삭제 모달 -->
-                <div class="modal-overlay" id="deleteCommentModal">
-                    <div class="modal-content">
-                        <h2>댓글을 삭제하시겠습니까?</h2>
-                        <p>삭제한 내용은 복구 할 수 없습니다.</p>
-                        <div class="modal-buttons">
-                            <button class="modal-btn cancel-btn">취소</button>
-                            <button class="modal-btn confirm-btn">확인</button>
-                        </div>
-                    </div>
+                    <!-- 댓글 목록은 JavaScript로 동적 생성됨 -->
                 </div>
             </div>
         </article>
     </main>
-
     <script src="detail.js"></script>
 </body>
 </html>
