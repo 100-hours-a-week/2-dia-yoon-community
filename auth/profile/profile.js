@@ -31,6 +31,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalCancelBtn = withdrawModal.querySelector('.modal-cancel');
     const modalConfirmBtn = withdrawModal.querySelector('.modal-confirm');
 
+    // 프로필 이미지 변경 관련 요소
+    const profileImageEdit = document.querySelector('.profile-image-edit');
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+
     // 현재 사용자 정보 로드
     function loadUserInfo() {
         const currentUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -50,7 +58,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // 프로필 이미지 설정
             if (currentUser.profileImage) {
                 profileDropdown.src = currentUser.profileImage;
-                const profileImageEdit = document.querySelector('.profile-image-edit');
                 if (profileImageEdit) {
                     profileImageEdit.style.backgroundImage = `url(${currentUser.profileImage})`;
                     profileImageEdit.style.backgroundSize = 'cover';
@@ -96,6 +103,85 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
+    // 이미지 압축 함수
+    function compressImage(imgFile) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(imgFile);
+            reader.onload = function(event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = function() {
+                    // 이미지 크기 줄이기
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 200;
+                    const MAX_HEIGHT = 200;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // 이미지 압축
+                    const compressedImageData = canvas.toDataURL('image/jpeg', 0.7);
+                    resolve(compressedImageData);
+                };
+                img.onerror = function() {
+                    reject(new Error('이미지 로드 실패'));
+                };
+            };
+            reader.onerror = function() {
+                reject(new Error('파일 읽기 실패'));
+            };
+        });
+    }
+
+    // 프로필 이미지 클릭 이벤트
+    profileImageEdit.addEventListener('click', function() {
+        fileInput.click();
+    });
+
+    // 파일 선택 이벤트
+    fileInput.addEventListener('change', async function(e) {
+        if (this.files && this.files[0]) {
+            try {
+                const file = this.files[0];
+                // 이미지 파일 체크
+                if (!file.type.startsWith('image/')) {
+                    alert('이미지 파일만 업로드 가능합니다.');
+                    return;
+                }
+                
+                // 이미지 압축
+                const compressedImage = await compressImage(file);
+                
+                // 이미지 미리보기 적용
+                profileImageEdit.style.backgroundImage = `url(${compressedImage})`;
+                profileImageEdit.style.backgroundSize = 'cover';
+                
+                // 이미지 정보 임시 저장 (submitBtn 클릭 이벤트에서 사용)
+                profileImageEdit.dataset.newImage = compressedImage;
+            } catch (error) {
+                console.error('이미지 처리 중 오류:', error);
+                alert('이미지 처리 중 오류가 발생했습니다.');
+            }
+        }
+    });
+
     // 수정하기 버튼 클릭 이벤트
     submitBtn.addEventListener('click', function() {
         if (validateNickname()) {
@@ -110,6 +196,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (userIndex !== -1) {
                     // 사용자 정보 업데이트
                     users[userIndex].nickname = nicknameInput.value.trim();
+                    
+                    // 새로운 프로필 이미지가 있으면 업데이트
+                    if (profileImageEdit.dataset.newImage) {
+                        users[userIndex].profileImage = profileImageEdit.dataset.newImage;
+                        currentUser.profileImage = profileImageEdit.dataset.newImage;
+                    }
                     
                     // localStorage 업데이트
                     localStorage.setItem('users', JSON.stringify(users));

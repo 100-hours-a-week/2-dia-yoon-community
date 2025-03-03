@@ -1,0 +1,10 @@
+<button onclick="clearLocalStorage()">localStorage 비우기</button>
+
+<script>
+function clearLocalStorage() {
+  localStorage.clear();
+  alert('localStorage가 비워졌습니다.');
+  // 페이지 새로고침
+  location.reload();
+}
+</script>

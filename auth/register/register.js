@@ -18,8 +18,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordConfirmHelperText = passwordConfirmInput.parentElement.querySelector('.helper-text');
     const nicknameHelperText = nicknameInput.parentElement.querySelector('.helper-text');
 
+    // 초기 헬퍼 텍스트 설정
+    profileHelperText.textContent = "* 프로필 사진을 추가해주세요";
+    emailHelperText.textContent = "* 이메일을 입력해주세요";
+    passwordHelperText.textContent = "* 비밀번호를 입력해주세요";
+    passwordConfirmHelperText.textContent = "* 비밀번호를 한번 더 입력해주세요";
+    nicknameHelperText.textContent = "* 닉네임을 입력해주세요";
+
     // 이메일 유효성 검사 함수
-    async function isValidEmail(email) {
+    function isValidEmail(email) {
         if (!email) {
             return {
                 isValid: false,
@@ -75,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 닉네임 유효성 검사 함수
-    async function isValidNickname(nickname) {
+    function isValidNickname(nickname) {
         if (!nickname) {
             return {
                 isValid: false,
@@ -115,33 +122,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 버튼 상태 업데이트 함수
     function updateButtonState() {
-        const hasProfile = profileUpload.files && profileUpload.files.length > 0;
-        const isEmailValid = emailHelperText.style.color === 'green';
-        const isPasswordValid = passwordHelperText.style.color === 'green';
-        const isPasswordConfirmValid = passwordConfirmHelperText.style.color === 'green';
-        const isNicknameValid = nicknameHelperText.style.color === 'green';
+        // 모든 입력 필드의 유효성 검사
+        const emailResult = isValidEmail(emailInput.value);
+        const passwordResult = isValidPassword(passwordInput.value);
+        const passwordsMatch = passwordInput.value === passwordConfirmInput.value && passwordInput.value !== '';
+        const nicknameResult = isValidNickname(nicknameInput.value);
+        
+        // 프로필 이미지 선택 여부 (기본 이미지도 허용)
+        const hasProfile = true; // 기본 이미지도 허용
+        
+        console.log('Button State Check:', {
+            hasProfile,
+            emailValid: emailResult.isValid,
+            passwordValid: passwordResult.isValid,
+            passwordsMatch,
+            nicknameValid: nicknameResult.isValid
+        });
 
-        if (hasProfile && isEmailValid && isPasswordValid && isPasswordConfirmValid && isNicknameValid) {
+        // 모든 조건이 충족되면 버튼 활성화
+        if (hasProfile && emailResult.isValid && passwordResult.isValid && 
+            passwordsMatch && nicknameResult.isValid) {
             registerButton.style.backgroundColor = '#7F6AEE';
             registerButton.disabled = false;
         } else {
             registerButton.style.backgroundColor = '#ACA0EB';
             registerButton.disabled = true;
         }
-
-        // 디버깅용 콘솔 로그
-        console.log('Button State Check:', {
-            hasProfile,
-            isEmailValid,
-            isPasswordValid,
-            isPasswordConfirmValid,
-            isNicknameValid
-        });
     }
 
     // 이메일 입력 이벤트
-    emailInput.addEventListener('input', async function() {
-        const validationResult = await isValidEmail(this.value);
+    emailInput.addEventListener('input', function() {
+        const validationResult = isValidEmail(this.value);
         emailHelperText.textContent = validationResult.message;
         emailHelperText.style.color = validationResult.isValid ? 'green' : 'red';
         updateButtonState();
@@ -179,49 +190,83 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 닉네임 입력 이벤트
-    nicknameInput.addEventListener('input', async function() {
-        const validationResult = await isValidNickname(this.value);
+    nicknameInput.addEventListener('input', function() {
+        const validationResult = isValidNickname(this.value);
         nicknameHelperText.textContent = validationResult.message;
         nicknameHelperText.style.color = validationResult.isValid ? 'green' : 'red';
         updateButtonState();
     });
 
     // 프로필 이미지 업로드
-    profileUpload.addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                profilePreview.src = e.target.result;
-                profileHelperText.textContent = "* 프로필 사진이 추가되었습니다";
-                profileHelperText.style.color = 'green';
-            };
-            reader.readAsDataURL(file);
-        } else {
-            profileHelperText.textContent = "* 프로필 사진을 추가해주세요";
-            profileHelperText.style.color = 'red';
-        }
-        updateButtonState();
-    });
-
-    // 프로필 이미지 클릭 이벤트
     profilePreview.addEventListener('click', function() {
         profileUpload.click();
     });
+    
+    // 프로필 이미지 업로드
+profileUpload.addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // 이미지 크기 줄이기
+            const img = new Image();
+            img.onload = function() {
+                // 캔버스를 사용해 이미지 크기 조정
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 200;
+                const MAX_HEIGHT = 200;
+                let width = img.width;
+                let height = img.height;
+                
+                // 비율 유지하면서 크기 줄이기
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // 압축된 이미지로 대체
+                const compressedImageData = canvas.toDataURL('image/jpeg', 0.7); // 70% 품질로 JPEG 압축
+                profilePreview.src = compressedImageData;
+                profileHelperText.textContent = "* 프로필 사진이 추가되었습니다";
+                profileHelperText.style.color = 'green';
+                updateButtonState();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        profileHelperText.textContent = "* 프로필 사진을 추가해주세요";
+        profileHelperText.style.color = 'red';
+        updateButtonState();
+    }
+});
 
     // 뒤로가기 버튼 이벤트
     backButton.addEventListener('click', function() {
-        window.location.href = 'login.html';
+        window.location.href = '../login/login.html';
     });
 
     // 로그인하러 가기 버튼 이벤트
     backToLoginButton.addEventListener('click', function() {
-        window.location.href = 'login.html';
+        window.location.href = '../login/login.html';
     });
 
     // 폼 제출 이벤트
-    registerForm.addEventListener('submit', async function(event) {
+    registerForm.addEventListener('submit', function(event) {
         event.preventDefault();
+        console.log('Form submitted');
 
         const email = emailInput.value;
         const password = passwordInput.value;
@@ -229,26 +274,59 @@ document.addEventListener('DOMContentLoaded', function() {
         const profileImage = profilePreview.src;
 
         // 최종 유효성 검사
-        const emailValidation = await isValidEmail(email);
+        const emailValidation = isValidEmail(email);
         const passwordValidation = isValidPassword(password);
-        const nicknameValidation = await isValidNickname(nickname);
+        const nicknameValidation = isValidNickname(nickname);
+        const passwordsMatch = password === passwordConfirmInput.value;
 
-        if (!emailValidation.isValid || !passwordValidation.isValid || !nicknameValidation.isValid) {
+        if (!emailValidation.isValid || !passwordValidation.isValid || 
+            !nicknameValidation.isValid || !passwordsMatch) {
+            console.log('Validation failed', { 
+                email: emailValidation, 
+                password: passwordValidation,
+                nickname: nicknameValidation,
+                passwordsMatch 
+            });
             return;
         }
 
-        // 사용자 정보 저장
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        users.push({
-            email,
-            password,
-            nickname,
-            profileImage
-        });
-        localStorage.setItem('users', JSON.stringify(users));
+        try {
+            // 현재 users 배열 가져오기
+            let users = [];
+            try {
+                const usersJSON = localStorage.getItem('users');
+                if (usersJSON) {
+                    users = JSON.parse(usersJSON);
+                }
+            } catch (e) {
+                console.error('Failed to parse users from localStorage:', e);
+                users = [];
+            }
 
-        // 로그인 페이지로 이동
-        window.location.href = '../login/login.html';
+            // 사용자 정보 추가
+            const newUser = {
+                email,
+                password,
+                nickname,
+                profileImage,
+                createdAt: new Date().toISOString()
+            };
+            
+            users.push(newUser);
+            console.log('Saving user:', newUser);
+            console.log('All users:', users);
+            
+            // localStorage에 저장
+            localStorage.setItem('users', JSON.stringify(users));
+            console.log('Users saved to localStorage');
+            
+            // 로그인 페이지로 이동
+            alert('회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.');
+            window.location.href = '../login/login.html';
+        } catch (error) {
+            console.error('회원가입 처리 중 오류 발생:', error);
+            alert('회원가입 중 오류가 발생했습니다: ' + error.message);
+        }
     });
 
     // 초기 상태 체크

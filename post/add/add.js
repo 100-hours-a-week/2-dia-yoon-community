@@ -35,11 +35,103 @@ document.addEventListener('DOMContentLoaded', function() {
     // 숨겨진 파일 업로드 input 요소 생성
     const realFileInput = document.createElement('input');
     realFileInput.type = 'file';
-    realFileInput.accept = 'image/*';
+    realFileInput.accept = 'image/jpeg,image/png,image/gif';
     realFileInput.style.display = 'none';
     document.body.appendChild(realFileInput);
  
     let uploadedImage = null;
+ 
+    // 극단적인 이미지 압축 함수
+    function compressImage(imgFile) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(imgFile);
+            reader.onload = function(event) {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = function() {
+                    // 매우 작은 크기로 설정 (300x300 픽셀)
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 300;
+                    const MAX_HEIGHT = 300;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // 비율 유지하면서 크기 조정
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // 매우 낮은 품질로 압축 (0.1 = 10% 품질)
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.1);
+                    
+                    // 추가 검사: 결과가 data:image/jpeg;base64, 로 시작하는지 확인
+                    if (!compressedDataUrl.startsWith('data:image/jpeg;base64,')) {
+                        reject(new Error('이미지 형식 오류'));
+                        return;
+                    }
+                    
+                    // 이미지 크기 확인 (대략적인 계산)
+                    const base64Length = compressedDataUrl.length - 'data:image/jpeg;base64,'.length;
+                    const sizeInBytes = base64Length * 0.75; // base64는 원본 크기의 약 4/3
+                    const sizeInKB = sizeInBytes / 1024;
+                    
+                    console.log(`압축된 이미지 크기: 약 ${sizeInKB.toFixed(2)}KB`);
+                    
+                    // 만약 크기가 100KB보다 크면 추가 압축 수행
+                    if (sizeInKB > 100) {
+                        console.log('이미지가 여전히 너무 큽니다. 추가 압축 수행...');
+                        // 더 작은 크기로 다시 압축
+                        const smallerCanvas = document.createElement('canvas');
+                        const SMALLER_MAX = 200; // 더 작은 크기로 제한
+                        let smallerWidth = width;
+                        let smallerHeight = height;
+                        
+                        if (smallerWidth > smallerHeight) {
+                            if (smallerWidth > SMALLER_MAX) {
+                                smallerHeight *= SMALLER_MAX / smallerWidth;
+                                smallerWidth = SMALLER_MAX;
+                            }
+                        } else {
+                            if (smallerHeight > SMALLER_MAX) {
+                                smallerWidth *= SMALLER_MAX / smallerHeight;
+                                smallerHeight = SMALLER_MAX;
+                            }
+                        }
+                        
+                        smallerCanvas.width = smallerWidth;
+                        smallerCanvas.height = smallerHeight;
+                        const smallerCtx = smallerCanvas.getContext('2d');
+                        smallerCtx.drawImage(img, 0, 0, smallerWidth, smallerHeight);
+                        
+                        // 더 낮은 품질로 압축 (0.05 = 5% 품질)
+                        resolve(smallerCanvas.toDataURL('image/jpeg', 0.05));
+                    } else {
+                        resolve(compressedDataUrl);
+                    }
+                };
+                img.onerror = function() {
+                    reject(new Error('이미지 로드 실패'));
+                };
+            };
+            reader.onerror = function() {
+                reject(new Error('파일 읽기 실패'));
+            };
+        });
+    }
  
     // 드롭다운 메뉴 토글
     profileDropdown.addEventListener('click', function(e) {
@@ -78,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
  
     // 파일 선택 시 이미지 업로드 처리
-    realFileInput.addEventListener('change', function(e) {
+    realFileInput.addEventListener('change', async function(e) {
         const file = e.target.files[0];
  
         if (file) {
@@ -87,15 +179,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 helperText.style.color = 'red';
                 return;
             }
- 
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                uploadedImage = event.target.result;
-            };
-            reader.readAsDataURL(file);
- 
-            helperText.textContent = `* ${file.name} 선택됨`;
-            helperText.style.color = 'green';
+            
+            try {
+                helperText.textContent = '* 이미지 처리 중...';
+                helperText.style.color = 'blue';
+                
+                // 이미지 압축
+                uploadedImage = await compressImage(file);
+                
+                helperText.textContent = `* ${file.name} 선택됨 (압축완료)`;
+                helperText.style.color = 'green';
+            } catch (error) {
+                console.error('이미지 처리 실패:', error);
+                helperText.textContent = '* 이미지 처리에 실패했습니다. 다시 시도하세요.';
+                helperText.style.color = 'red';
+                uploadedImage = null;
+            }
         }
     });
  
@@ -113,7 +212,25 @@ document.addEventListener('DOMContentLoaded', function() {
  
         try {
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+            let posts;
+            
+            try {
+                posts = JSON.parse(localStorage.getItem('posts') || '[]');
+            } catch (error) {
+                console.error('기존 게시글 데이터 파싱 오류:', error);
+                posts = [];
+            }
+            
+            // 기존 게시글 정리
+            try {
+                // 혹시 게시글이 너무 많아 용량이 큰 경우를 대비해, 최신 20개만 유지
+                if (posts.length > 20) {
+                    console.log('게시글이 너무 많습니다. 최신 20개만 유지합니다.');
+                    posts = posts.slice(0, 20);
+                }
+            } catch (error) {
+                console.error('게시글 정리 중 오류:', error);
+            }
             
             const postData = {
                 id: Date.now(),
@@ -128,16 +245,64 @@ document.addEventListener('DOMContentLoaded', function() {
                 views: 0
             };
  
+            // 새 게시글을 맨 앞에 추가
             posts.unshift(postData);
-            localStorage.setItem('posts', JSON.stringify(posts));
-            alert('게시글이 등록되었습니다.');
-            window.location.href = '../index/index.html';
+            
+            // localStorage 용량 확인
+            try {
+                const postString = JSON.stringify(posts);
+                const sizeInMB = postString.length / (1024 * 1024);
+                console.log(`게시글 데이터 크기: 약 ${sizeInMB.toFixed(2)}MB`);
+                
+                if (sizeInMB > 4) {
+                    // 용량이 너무 크면 이미지 정보 제거
+                    console.warn('게시글 데이터가 너무 큽니다. 이미지 정보를 제거합니다.');
+                    // 가장 오래된 게시글부터 이미지 제거
+                    let index = posts.length - 1;
+                    while (sizeInMB > 4 && index >= 0) {
+                        if (posts[index].image) {
+                            posts[index].image = null;
+                            // 크기 다시 계산
+                            const newPostString = JSON.stringify(posts);
+                            sizeInMB = newPostString.length / (1024 * 1024);
+                        }
+                        index--;
+                    }
+                }
+            } catch (error) {
+                console.error('용량 확인 중 오류:', error);
+            }
+            
+            // localStorage에 저장 시도
+            try {
+                localStorage.setItem('posts', JSON.stringify(posts));
+                alert('게시글이 등록되었습니다.');
+                window.location.href = '../index/index.html';
+            } catch (error) {
+                console.error('localStorage 저장 중 오류:', error);
+                
+                // 오류 발생 시 이미지 없이 저장 시도
+                if (postData.image) {
+                    postData.image = null;
+                    posts[0] = postData;
+                    
+                    try {
+                        localStorage.setItem('posts', JSON.stringify(posts));
+                        alert('이미지를 제외한 게시글이 등록되었습니다.');
+                        window.location.href = '../index/index.html';
+                    } catch (finalError) {
+                        alert('게시글 등록에 실패했습니다. 게시글 데이터를 정리한 후 다시 시도해주세요.');
+                    }
+                } else {
+                    alert('게시글 등록에 실패했습니다.');
+                }
+            }
         } catch (error) {
             console.error('게시글 저장 중 오류 발생:', error);
-            alert('게시글 등록에 실패했습니다.');
+            alert('게시글 등록에 실패했습니다: ' + error.message);
         }
     });
  
     // 초기화
     displayUserInfo();
- });
+});

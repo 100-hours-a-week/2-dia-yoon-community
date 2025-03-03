@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const postImage = postImageContainer.querySelector('img');
     const postActions = document.querySelector('.post-actions');
     const backBtn = document.querySelector('.back-btn');
+    const commentForm = document.querySelector('.comment-form');
+    const commentTextarea = commentForm.querySelector('textarea');
  
     // 사용자 정보 표시
     function displayUserInfo() {
@@ -89,8 +91,57 @@ document.addEventListener('DOMContentLoaded', function() {
         if (viewStat) viewStat.textContent = post.views || 0;
         if (commentStat) commentStat.textContent = post.comments || 0;
  
-        // 수정/삭제 버튼 표시 (작성자만)
+        // 좋아요 버튼 및 기능 추가
+        const likesStat = document.querySelectorAll('.stat-value')[0];
+        const likesBox = likesStat.closest('.stat-box');
+        
+        // 좋아요 박스를 클릭 가능하게 스타일 변경
+        likesBox.style.cursor = 'pointer';
+        
+        // 현재 사용자가 이미 좋아요를 눌렀는지 확인
         const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        const userEmail = currentUser.email;
+        
+        // post에 likedBy 배열이 없으면 생성
+        if (!post.likedBy) {
+            post.likedBy = [];
+        }
+        
+        // 좋아요 상태에 따라 스타일 변경
+        if (post.likedBy.includes(userEmail)) {
+            likesBox.style.backgroundColor = '#7C6CF6';
+            likesBox.style.color = 'white';
+        }
+        
+        // 좋아요 클릭 이벤트
+        likesBox.addEventListener('click', function() {
+            const userIndex = post.likedBy.indexOf(userEmail);
+            
+            if (userIndex === -1) {
+                // 좋아요 추가
+                post.likedBy.push(userEmail);
+                post.likes += 1;
+                likesBox.style.backgroundColor = '#7C6CF6';
+                likesBox.style.color = 'white';
+            } else {
+                // 좋아요 취소
+                post.likedBy.splice(userIndex, 1);
+                post.likes -= 1;
+                likesBox.style.backgroundColor = '#f5f5f5';
+                likesBox.style.color = '#333';
+            }
+            
+            // 좋아요 수 업데이트
+            likesStat.textContent = post.likes;
+            
+            // localStorage 업데이트
+            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+            const postIndex = posts.findIndex(p => p.id === Number(postId));
+            posts[postIndex] = post;
+            localStorage.setItem('posts', JSON.stringify(posts));
+        });
+ 
+        // 수정/삭제 버튼 표시 (작성자만)
         if (postActions) {
             if (currentUser && currentUser.nickname === post.author) {
                 postActions.innerHTML = `
@@ -122,6 +173,48 @@ document.addEventListener('DOMContentLoaded', function() {
         // 조회수 증가
         post.views = (post.views || 0) + 1;
         localStorage.setItem('posts', JSON.stringify(posts));
+    }
+ 
+    // 댓글 로드 함수
+    function loadComments() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('id');
+        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+        const post = posts.find(p => p.id === Number(postId));
+        
+        if (!post) return;
+        
+        // 댓글 목록 엘리먼트
+        const commentList = document.querySelector('.comment-list');
+        commentList.innerHTML = '';
+        
+        // 댓글 배열이 없으면 생성
+        if (!post.commentsList) {
+            post.commentsList = [];
+        }
+        
+        // 댓글 출력
+        post.commentsList.forEach(comment => {
+            const commentElement = document.createElement('div');
+            commentElement.className = 'comment-item';
+            
+            commentElement.innerHTML = `
+                <div class="comment-author">
+                    <img src="${comment.authorImage || '../images/default-profile.png'}" class="comment-author-image">
+                    <div class="comment-info">
+                        <span class="comment-author-name">${comment.author}</span>
+                        <span class="comment-date">${new Date(comment.createdAt).toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="comment-text">${comment.text}</div>
+            `;
+            
+            commentList.appendChild(commentElement);
+        });
+        
+        // 댓글 수 업데이트
+        const commentStat = document.querySelectorAll('.stat-value')[2];
+        commentStat.textContent = post.commentsList.length;
     }
  
     // 드롭다운 메뉴 토글
@@ -168,8 +261,53 @@ document.addEventListener('DOMContentLoaded', function() {
             this.src = '../images/default-profile.png';
         };
     });
+
+    // 댓글 폼 제출 이벤트
+    commentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const commentText = commentTextarea.value.trim();
+        if (!commentText) return;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('id');
+        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+        const postIndex = posts.findIndex(p => p.id === Number(postId));
+        
+        if (postIndex === -1) return;
+        
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        
+        // 댓글 객체 생성
+        const newComment = {
+            id: Date.now(),
+            text: commentText,
+            author: currentUser.nickname,
+            authorImage: currentUser.profileImage,
+            createdAt: new Date().toISOString()
+        };
+        
+        // 댓글 배열이 없으면 생성
+        if (!posts[postIndex].commentsList) {
+            posts[postIndex].commentsList = [];
+        }
+        
+        // 댓글 추가
+        posts[postIndex].commentsList.push(newComment);
+        posts[postIndex].comments = posts[postIndex].commentsList.length;
+        
+        // localStorage 업데이트
+        localStorage.setItem('posts', JSON.stringify(posts));
+        
+        // 댓글 입력창 비우기
+        commentTextarea.value = '';
+        
+        // 댓글 목록 새로고침
+        loadComments();
+    });
  
     // 초기화
     displayUserInfo();
     loadPostData();
+    loadComments();
  });
