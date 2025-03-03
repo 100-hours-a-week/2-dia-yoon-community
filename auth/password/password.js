@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기 로그인 체크
     if (!checkLogin()) return;
 
+    // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
+    const API_URL = 'https://api.example.com';
+
     const profileDropdown = document.getElementById('profileDropdown');
     const menuList = document.getElementById('menuList');
     const passwordInput = document.getElementById('password');
@@ -74,33 +77,63 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
-    // 비밀번호 업데이트 함수
-    function updateUserPassword(newPassword) {
+    // Fetch API를 사용한 비밀번호 업데이트 함수
+    async function updateUserPassword(newPassword) {
         try {
             // 현재 로그인한 사용자 정보 가져오기
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const token = sessionStorage.getItem('token');
             
-            // users 배열에서 현재 사용자 찾기
-            const userIndex = users.findIndex(user => user.email === currentUser.email);
+            const response = await fetch(`${API_URL}/users/${currentUser.email}/password`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ password: newPassword })
+            });
             
-            if (userIndex !== -1) {
-                // 사용자 비밀번호 업데이트
-                users[userIndex].password = newPassword;
-                
-                // localStorage 업데이트
-                localStorage.setItem('users', JSON.stringify(users));
-                
-                // currentUser 정보도 업데이트
-                currentUser.password = newPassword;
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                
-                return true;
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
-            return false;
+            
+            // 서버에서 응답 데이터 받기
+            const result = await response.json();
+            
+            // 로컬 사용자 정보 업데이트
+            currentUser.password = newPassword;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            return true;
         } catch (error) {
-            console.error('비밀번호 업데이트 중 오류 발생:', error);
-            return false;
+            console.error('비밀번호 업데이트 API 호출 중 오류:', error);
+            
+            // API 호출 실패 시 localStorage에서 직접 업데이트
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                const users = JSON.parse(localStorage.getItem('users') || '[]');
+                
+                // users 배열에서 현재 사용자 찾기
+                const userIndex = users.findIndex(user => user.email === currentUser.email);
+                
+                if (userIndex !== -1) {
+                    // 사용자 비밀번호 업데이트
+                    users[userIndex].password = newPassword;
+                    
+                    // localStorage 업데이트
+                    localStorage.setItem('users', JSON.stringify(users));
+                    
+                    // currentUser 정보도 업데이트
+                    currentUser.password = newPassword;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    return true;
+                }
+                return false;
+            } catch (localError) {
+                console.error('localStorage 비밀번호 업데이트 중 오류:', localError);
+                return false;
+            }
         }
     }
 
@@ -129,9 +162,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 수정하기 버튼 클릭 이벤트
-    submitBtn.addEventListener('click', function() {
+    submitBtn.addEventListener('click', async function() {
         if (isPasswordValid && isConfirmPasswordValid) {
-            const success = updateUserPassword(passwordInput.value);
+            const success = await updateUserPassword(passwordInput.value);
             
             if (success) {
                 toast.textContent = "비밀번호가 성공적으로 변경되었습니다";
@@ -164,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function() {
         menuList.classList.remove('show');
     });
 
-    // 메뉴 항목 클릭 이벤트
+    // 메뉴 항목 클릭
     menuList.addEventListener('click', function(e) {
         const item = e.target;
         
@@ -179,6 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 localStorage.removeItem('currentUser');
                 sessionStorage.removeItem('isLoggedIn');
                 sessionStorage.removeItem('userEmail');
+                sessionStorage.removeItem('token');
                 window.location.href = '../login/login.html';
                 break;
         }

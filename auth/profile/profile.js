@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기 로그인 체크
     if (!checkLogin()) return;
 
+    // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
+    const API_URL = 'https://api.example.com';
+
     // 드롭다운 메뉴 관련 요소
     const profileDropdown = document.getElementById('profileDropdown');
     const menuList = document.getElementById('menuList');
@@ -39,35 +42,102 @@ document.addEventListener('DOMContentLoaded', function() {
     fileInput.style.display = 'none';
     document.body.appendChild(fileInput);
 
-    // 현재 사용자 정보 로드
-    function loadUserInfo() {
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        if (currentUser) {
+    // Fetch API를 사용한 사용자 정보 로드
+    async function fetchUserInfo() {
+        try {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const token = sessionStorage.getItem('token');
+            
+            const response = await fetch(`${API_URL}/users/${currentUser.email}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const userData = await response.json();
+            displayUserInfo(userData);
+            
+            // 최신 사용자 정보 로컬에 업데이트
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+            
+            return userData;
+        } catch (error) {
+            console.error('사용자 정보 로드 중 오류:', error);
+            
+            // API 호출 실패 시 localStorage 데이터 사용
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            displayUserInfo(currentUser);
+            return currentUser;
+        }
+    }
+    
+    // 사용자 정보 표시 함수
+    function displayUserInfo(userData) {
+        if (userData) {
             // 이메일 필드에 현재 사용자 이메일 설정
             const emailInput = document.querySelector('input[type="email"]');
             if (emailInput) {
-                emailInput.value = currentUser.email || '';
+                emailInput.value = userData.email || '';
             }
 
             // 닉네임 필드에 현재 사용자 닉네임 설정
             if (nicknameInput) {
-                nicknameInput.value = currentUser.nickname || '';
-                nicknameInput.placeholder = currentUser.nickname || '닉네임을 입력하세요';
+                nicknameInput.value = userData.nickname || '';
+                nicknameInput.placeholder = userData.nickname || '닉네임을 입력하세요';
             }
 
             // 프로필 이미지 설정
-            if (currentUser.profileImage) {
-                profileDropdown.src = currentUser.profileImage;
+            if (userData.profileImage) {
+                profileDropdown.src = userData.profileImage;
                 if (profileImageEdit) {
-                    profileImageEdit.style.backgroundImage = `url(${currentUser.profileImage})`;
+                    profileImageEdit.style.backgroundImage = `url(${userData.profileImage})`;
                     profileImageEdit.style.backgroundSize = 'cover';
                 }
             }
         }
     }
 
+    // Fetch API를 사용한 닉네임 중복 검사
+    async function checkNicknameDuplicate(nickname) {
+        try {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            
+            // 현재 사용자의 닉네임과 같은 경우는 중복 체크 제외
+            if (currentUser && nickname === currentUser.nickname) {
+                return false;
+            }
+            
+            const response = await fetch(`${API_URL}/users/check-nickname?nickname=${encodeURIComponent(nickname)}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            return result.isDuplicate; // true면 중복, false면 사용 가능
+        } catch (error) {
+            console.error('닉네임 중복 검사 API 호출 중 오류:', error);
+            
+            // API 호출 실패 시 localStorage로 폴백
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            
+            // 현재 사용자의 닉네임과 같은 경우는 중복 체크 제외
+            if (currentUser && nickname === currentUser.nickname) {
+                return false;
+            }
+            
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            return users.some(user => user.nickname === nickname);
+        }
+    }
+
     // 닉네임 유효성 검사
-    function validateNickname() {
+    async function validateNickname() {
         const nickname = nicknameInput.value.trim();
         
         if (nickname === '') {
@@ -82,16 +152,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
 
-        // 현재 사용자의 닉네임과 같은 경우는 중복 체크 제외
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        if (currentUser && nickname === currentUser.nickname) {
-            nicknameHelper.style.display = 'none';
-            return true;
-        }
-        
         // 닉네임 중복 체크
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const isDuplicate = users.some(user => user.nickname === nickname);
+        const isDuplicate = await checkNicknameDuplicate(nickname);
         
         if (isDuplicate) {
             nicknameHelper.textContent = '* 중복된 닉네임입니다';
@@ -182,9 +244,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // 수정하기 버튼 클릭 이벤트
-    submitBtn.addEventListener('click', function() {
-        if (validateNickname()) {
+    // Fetch API를 사용한 프로필 업데이트
+    async function updateUserProfile(nickname, profileImage) {
+        try {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const token = sessionStorage.getItem('token');
+            
+            const updateData = {
+                nickname: nickname.trim()
+            };
+            
+            if (profileImage) {
+                updateData.profileImage = profileImage;
+            }
+            
+            const response = await fetch(`${API_URL}/users/${currentUser.email}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(updateData)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const updatedUser = await response.json();
+            
+            // 로컬 사용자 정보 업데이트
+            localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+            
+            return true;
+        } catch (error) {
+            console.error('프로필 업데이트 중 오류:', error);
+            
+            // API 호출 실패 시 localStorage에서 직접 업데이트
             try {
                 // 현재 사용자 정보 가져오기
                 const currentUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -195,22 +291,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (userIndex !== -1) {
                     // 사용자 정보 업데이트
-                    users[userIndex].nickname = nicknameInput.value.trim();
+                    users[userIndex].nickname = nickname.trim();
                     
                     // 새로운 프로필 이미지가 있으면 업데이트
-                    if (profileImageEdit.dataset.newImage) {
-                        users[userIndex].profileImage = profileImageEdit.dataset.newImage;
-                        currentUser.profileImage = profileImageEdit.dataset.newImage;
+                    if (profileImage) {
+                        users[userIndex].profileImage = profileImage;
+                        currentUser.profileImage = profileImage;
                     }
                     
                     // localStorage 업데이트
                     localStorage.setItem('users', JSON.stringify(users));
                     
                     // currentUser 정보도 업데이트
-                    currentUser.nickname = nicknameInput.value.trim();
+                    currentUser.nickname = nickname.trim();
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    
+                    return true;
+                }
+                return false;
+            } catch (localError) {
+                console.error('로컬 프로필 업데이트 중 오류:', localError);
+                return false;
+            }
+        }
+    }
 
-                    // 토스트 메시지 표시
+    // 수정하기 버튼 클릭 이벤트
+    submitBtn.addEventListener('click', async function() {
+        if (await validateNickname()) {
+            try {
+                const profileImage = profileImageEdit.dataset.newImage || null;
+                const success = await updateUserProfile(nicknameInput.value, profileImage);
+                
+                if (success) {
                     toast.textContent = "회원정보가 수정되었습니다";
                     toast.classList.add('show');
                     
@@ -218,6 +331,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(() => {
                         toast.classList.remove('show');
                         window.location.href = '../../post/index/index.html';
+                    }, 2000);
+                } else {
+                    toast.textContent = "회원정보 수정에 실패했습니다";
+                    toast.classList.add('show');
+                    setTimeout(() => {
+                        toast.classList.remove('show');
                     }, 2000);
                 }
             } catch (error) {
@@ -232,7 +351,61 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 입력 필드 변경시마다 유효성 검사
-    nicknameInput.addEventListener('input', validateNickname);
+    nicknameInput.addEventListener('input', function() {
+        validateNickname();
+    });
+
+    // Fetch API를 사용한 회원 탈퇴
+    async function deleteUserAccount() {
+        try {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const token = sessionStorage.getItem('token');
+            
+            const response = await fetch(`${API_URL}/users/${currentUser.email}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            // 로그인 정보 삭제
+            localStorage.removeItem('currentUser');
+            sessionStorage.removeItem('isLoggedIn');
+            sessionStorage.removeItem('userEmail');
+            sessionStorage.removeItem('token');
+            
+            return true;
+        } catch (error) {
+            console.error('회원 탈퇴 중 오류:', error);
+            
+            // API 호출 실패 시 localStorage에서 직접 처리
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                const users = JSON.parse(localStorage.getItem('users') || '[]');
+                
+                // users 배열에서 현재 사용자 제거
+                const updatedUsers = users.filter(user => user.email !== currentUser.email);
+                
+                // localStorage 업데이트
+                localStorage.setItem('users', JSON.stringify(updatedUsers));
+                
+                // 로그인 정보 삭제
+                localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('isLoggedIn');
+                sessionStorage.removeItem('userEmail');
+                sessionStorage.removeItem('token');
+                
+                return true;
+            } catch (localError) {
+                console.error('로컬 회원 탈퇴 처리 중 오류:', localError);
+                return false;
+            }
+        }
+    }
 
     // 회원 탈퇴 버튼 클릭 시 모달 표시
     withdrawBtn.addEventListener('click', function() {
@@ -245,27 +418,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 모달 확인 버튼 클릭 시 회원 탈퇴 처리
-    modalConfirmBtn.addEventListener('click', function() {
+    modalConfirmBtn.addEventListener('click', async function() {
         try {
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const success = await deleteUserAccount();
             
-            // users 배열에서 현재 사용자 제거
-            const updatedUsers = users.filter(user => user.email !== currentUser.email);
-            
-            // localStorage 업데이트
-            localStorage.setItem('users', JSON.stringify(updatedUsers));
-            
-            // 로그인 정보 삭제
-            localStorage.removeItem('currentUser');
-            sessionStorage.removeItem('isLoggedIn');
-            sessionStorage.removeItem('userEmail');
-
-            // 로그인 페이지로 이동
-            window.location.href = '../../auth/login/login.html';
+            if (success) {
+                // 로그인 페이지로 이동
+                window.location.href = '../../auth/login/login.html';
+            } else {
+                alert('회원 탈퇴에 실패했습니다.');
+                withdrawModal.classList.remove('show');
+            }
         } catch (error) {
             console.error('회원 탈퇴 중 오류 발생:', error);
             alert('회원 탈퇴에 실패했습니다.');
+            withdrawModal.classList.remove('show');
         }
     });
 
@@ -295,11 +462,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 localStorage.removeItem('currentUser');
                 sessionStorage.removeItem('isLoggedIn');
                 sessionStorage.removeItem('userEmail');
+                sessionStorage.removeItem('token');
                 window.location.href = '../login/login.html';
                 break;
         }
     });
 
     // 초기 페이지 로드 시 사용자 정보 표시
-    loadUserInfo();
+    fetchUserInfo();
 });

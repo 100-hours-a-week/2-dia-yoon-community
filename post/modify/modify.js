@@ -30,6 +30,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const postId = urlParams.get('id');
     
+    // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
+    const API_BASE_URL = 'https://api.example.com';
+    
     // 현재 게시글 데이터 저장용 변수
     let originalPost = null;
     let hasImageChanged = false;
@@ -127,38 +130,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 기존 게시글 데이터 불러오기
-    function loadPostData() {
+    // Fetch를 사용하여 기존 게시글 데이터 불러오기
+    async function fetchPostData() {
         try {
-            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-            const post = posts.find(p => p.id === Number(postId));
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}`);
             
-            if (!post) {
-                alert('게시글을 찾을 수 없습니다.');
-                window.location.href = '../index/index.html';
-                return;
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
             
-            // 현재 게시글 데이터 저장
+            const post = await response.json();
             originalPost = post;
-
-            // 제목과 내용 설정
-            titleInput.value = post.title || '';
-            contentInput.value = post.content || '';
-            titleCounter.textContent = `${(post.title || '').length}/26`;
-
-            // 이미지가 있는 경우 미리보기 표시
-            if (post.image) {
-                currentImage.innerHTML = `<img src="${post.image}" alt="현재 이미지">`;
-                selectedFile.textContent = "현재 이미지가 있습니다";
-            } else {
-                currentImage.innerHTML = '';
-                selectedFile.textContent = "이미지 없음";
-            }
+            displayPostData(post);
         } catch (error) {
             console.error('게시글 데이터 로드 중 오류:', error);
-            alert('게시글 데이터를 불러오는 중 오류가 발생했습니다.');
-            window.location.href = '../index/index.html';
+            
+            // API 호출 실패 시 localStorage 데이터 사용
+            try {
+                const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                const post = posts.find(p => p.id === Number(postId));
+                
+                if (!post) {
+                    alert('게시글을 찾을 수 없습니다.');
+                    window.location.href = '../index/index.html';
+                    return;
+                }
+                
+                // 현재 게시글 데이터 저장
+                originalPost = post;
+                displayPostData(post);
+            } catch (localError) {
+                console.error('게시글 데이터 로컬 로드 중 오류:', localError);
+                alert('게시글 데이터를 불러오는 중 오류가 발생했습니다.');
+                window.location.href = '../index/index.html';
+            }
+        }
+    }
+    
+    // 게시글 데이터 표시 함수
+    function displayPostData(post) {
+        // 제목과 내용 설정
+        titleInput.value = post.title || '';
+        contentInput.value = post.content || '';
+        titleCounter.textContent = `${(post.title || '').length}/26`;
+
+        // 이미지가 있는 경우 미리보기 표시
+        if (post.image) {
+            currentImage.innerHTML = `<img src="${post.image}" alt="현재 이미지">`;
+            selectedFile.textContent = "현재 이미지가 있습니다";
+        } else {
+            currentImage.innerHTML = '';
+            selectedFile.textContent = "이미지 없음";
         }
     }
 
@@ -207,6 +229,74 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Fetch를 사용한 게시글 업데이트
+    async function updatePost(updatedPost) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedPost)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            alert('게시글이 수정되었습니다.');
+            window.location.href = `../detail/detail.html?id=${postId}`;
+        } catch (error) {
+            console.error('게시글 업데이트 중 오류:', error);
+            
+            // API 호출 실패 시 localStorage에서 직접 업데이트
+            try {
+                const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                const postIndex = posts.findIndex(p => p.id === Number(postId));
+
+                if (postIndex === -1) {
+                    alert('게시글을 찾을 수 없습니다.');
+                    return;
+                }
+
+                // 게시글 데이터 업데이트
+                posts[postIndex] = updatedPost;
+                
+                // localStorage 업데이트
+                localStorage.setItem('posts', JSON.stringify(posts));
+                
+                alert('게시글이 수정되었습니다.');
+                window.location.href = `../detail/detail.html?id=${postId}`;
+            } catch (localError) {
+                console.error('localStorage 저장 중 오류:', localError);
+                
+                // 오류 발생 시 이미지 제거 후 다시 시도
+                if (hasImageChanged) {
+                    updatedPost.image = null;
+                    
+                    try {
+                        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                        const postIndex = posts.findIndex(p => p.id === Number(postId));
+                        
+                        if (postIndex !== -1) {
+                            posts[postIndex] = updatedPost;
+                            localStorage.setItem('posts', JSON.stringify(posts));
+                            
+                            alert('이미지를 제외한 게시글이 수정되었습니다. (용량 초과)');
+                            window.location.href = `../detail/detail.html?id=${postId}`;
+                        }
+                    } catch (finalError) {
+                        console.error('최종 저장 시도 실패:', finalError);
+                        alert('게시글 수정에 실패했습니다. 데이터를 정리한 후 다시 시도해주세요.');
+                    }
+                } else {
+                    alert('게시글 수정에 실패했습니다.');
+                }
+            }
+        }
+    }
+
     // 폼 제출 처리
     modifyForm.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -217,14 +307,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-            const postIndex = posts.findIndex(p => p.id === Number(postId));
-
-            if (postIndex === -1) {
-                alert('게시글을 찾을 수 없습니다.');
-                return;
-            }
-
             // 게시글 데이터 수정 객체 준비
             const updatedPost = {
                 ...originalPost,
@@ -238,60 +320,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 updatedPost.image = newImageData;
             }
 
-            // 게시글 업데이트
-            posts[postIndex] = updatedPost;
-            
-            // 저장 시도
-            try {
-                localStorage.setItem('posts', JSON.stringify(posts));
-                alert('게시글이 수정되었습니다.');
-                window.location.href = `../detail/detail.html?id=${postId}`;
-            } catch (error) {
-                console.error('localStorage 저장 중 오류:', error);
-                
-                // 오류 발생 시 이미지 제거 후 다시 시도
-                if (hasImageChanged) {
-                    updatedPost.image = null;
-                    posts[postIndex] = updatedPost;
-                    
-                    try {
-                        localStorage.setItem('posts', JSON.stringify(posts));
-                        alert('이미지를 제외한 게시글이 수정되었습니다. (용량 초과)');
-                        window.location.href = `../detail/detail.html?id=${postId}`;
-                    } catch (finalError) {
-                        console.error('최종 저장 시도 실패:', finalError);
-                        alert('게시글 수정에 실패했습니다. 데이터를 정리한 후 다시 시도해주세요.');
-                    }
-                } else {
-                    // 이미지가 변경되지 않은 경우 원본 이미지 제거 후 저장 시도
-                    updatedPost.image = null;
-                    posts[postIndex] = updatedPost;
-                    
-                    try {
-                        localStorage.setItem('posts', JSON.stringify(posts));
-                        alert('이미지를 제외한 게시글이 수정되었습니다. (용량 초과)');
-                        window.location.href = `../detail/detail.html?id=${postId}`;
-                    } catch (finalFinalError) {
-                        console.error('마지막 저장 시도마저 실패:', finalFinalError);
-                        
-                        // 마지막 시도: localStorage 정리 후 저장
-                        try {
-                            // 다른 게시글 이미지 모두 제거
-                            posts.forEach((post, idx) => {
-                                if (idx !== postIndex && post.image) {
-                                    post.image = null;
-                                }
-                            });
-                            
-                            localStorage.setItem('posts', JSON.stringify(posts));
-                            alert('다른 게시글의 이미지를 모두 제거하고 게시글이 수정되었습니다.');
-                            window.location.href = `../detail/detail.html?id=${postId}`;
-                        } catch (absoluteLastError) {
-                            alert('모든 저장 시도가 실패했습니다. localStorage를 정리해주세요.');
-                        }
-                    }
-                }
-            }
+            // Fetch API를 사용하여 게시글 업데이트
+            await updatePost(updatedPost);
         } catch (error) {
             console.error('게시글 수정 중 오류 발생:', error);
             alert('게시글 수정에 실패했습니다: ' + error.message);
@@ -335,5 +365,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 초기화
-    loadPostData();
+    fetchPostData();
 });

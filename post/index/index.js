@@ -30,11 +30,41 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
+    const API_URL = 'https://api.example.com/posts';
+
+    // Fetch를 사용하여 게시글 목록 가져오기
+    async function fetchPosts() {
+        try {
+            const response = await fetch(API_URL);
+            
+            // 서버 응답 검사
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const posts = await response.json();
+            displayPosts(posts);
+        } catch (error) {
+            console.error('게시글을 불러오는 중 오류 발생:', error);
+            // API 요청이 실패한 경우 대체로 localStorage 데이터 사용
+            const localPosts = JSON.parse(localStorage.getItem('posts') || '[]');
+            displayPosts(localPosts);
+            
+            // 사용자에게 오류 알림
+            alert('게시글을 불러오는데 문제가 발생했습니다. 로컬 데이터를 표시합니다.');
+        }
+    }
+
     // 게시글 목록 표시 함수
-    function displayPosts() {
-        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+    function displayPosts(posts) {
         const postList = document.querySelector('.post-list');
         postList.innerHTML = ''; // 기존 목록 초기화
+
+        if (posts.length === 0) {
+            postList.innerHTML = '<div class="no-posts">게시글이 없습니다.</div>';
+            return;
+        }
 
         posts.forEach(post => {
             const postElement = document.createElement('div');
@@ -44,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
             postElement.innerHTML = `
                 <h2>${post.title}</h2>
                 <div class="post-info">
-                    <span>좋아요 ${post.likes} 댓글 ${post.comments} 조회수 ${post.views}</span>
+                    <span>좋아요 ${post.likes || 0} 댓글 ${post.comments || 0} 조회수 ${post.views || 0}</span>
                     <span class="date">${new Date(post.createdAt).toLocaleString()}</span>
                 </div>
                 <div class="post-author">
@@ -112,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기화 함수
     function initialize() {
         displayUserInfo();
-        displayPosts();
+        fetchPosts(); // localStorage 직접 접근하는 대신 fetch 사용
     }
 
     // 초기화 실행

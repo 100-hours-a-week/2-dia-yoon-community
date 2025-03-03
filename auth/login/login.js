@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const emailHelper = emailInput.parentElement.querySelector('.helper-text');
     const passwordHelper = passwordInput.parentElement.querySelector('.helper-text');
     const loginButton = document.querySelector('.login-button');
+    
+    // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
+    const API_URL = 'https://api.example.com';
 
     // 이메일 유효성 검사 함수
     function isValidEmail(email) {
@@ -12,27 +15,56 @@ document.addEventListener('DOMContentLoaded', function() {
         return emailRegex.test(email);
     }
 
-    // 로그인 검증 함수
-    function validateLogin(email, password) {
+    // Fetch API를 사용한 로그인 검증 함수
+    async function validateLogin(email, password) {
         try {
-            // localStorage 디버깅
+            const response = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const user = await response.json();
+            
+            // 서버에서 받은 토큰 저장 (인증에 필요)
+            if (user.token) {
+                sessionStorage.setItem('token', user.token);
+            }
+            
+            sessionStorage.setItem('isLoggedIn', 'true');
+            sessionStorage.setItem('userEmail', email);
+            
+            return user;
+        } catch (error) {
+            console.error('API 로그인 검증 중 에러 발생:', error);
+            
+            // API 호출 실패 시 localStorage로 폴백
+            console.log('localStorage로 폴백 로그인 시도');
             console.log('현재 저장된 users:', localStorage.getItem('users'));
             
-            const users = JSON.parse(localStorage.getItem('users') || '[]');
-            console.log('파싱된 users:', users);
-            
-            const user = users.find(user => user.email === email && user.password === password);
-            console.log('찾은 user:', user);
-            
-            if (user) {
-                sessionStorage.setItem('isLoggedIn', 'true');
-                sessionStorage.setItem('userEmail', email);
-                return user;
+            try {
+                const users = JSON.parse(localStorage.getItem('users') || '[]');
+                console.log('파싱된 users:', users);
+                
+                const user = users.find(user => user.email === email && user.password === password);
+                console.log('찾은 user:', user);
+                
+                if (user) {
+                    sessionStorage.setItem('isLoggedIn', 'true');
+                    sessionStorage.setItem('userEmail', email);
+                    return user;
+                }
+                return null;
+            } catch (localError) {
+                console.error('localStorage 로그인 검증 중 에러 발생:', localError);
+                throw localError;
             }
-            return null;
-        } catch (error) {
-            console.error('로그인 검증 중 에러 발생:', error);
-            throw error; // 에러를 상위로 전달
         }
     }
 
@@ -76,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 폼 제출 이벤트
-    loginForm.addEventListener('submit', function(event) {
+    loginForm.addEventListener('submit', async function(event) {
         event.preventDefault();
         loginButton.disabled = true;
 
@@ -87,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // 로그인 시도 중인 정보 출력
             console.log('로그인 시도:', { email, password });
             
-            const user = validateLogin(email, password);
+            const user = await validateLogin(email, password);
             
             if (user) {
                 console.log('로그인 성공:', user);
