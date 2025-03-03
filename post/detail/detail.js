@@ -29,6 +29,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const backBtn = document.querySelector('.back-btn');
     const commentForm = document.querySelector('.comment-form');
     const commentTextarea = commentForm.querySelector('textarea');
+    const commentSubmitBtn = document.querySelector('.submit-btn');
+    const commentList = document.querySelector('.comment-list');
+
+    // URL에서 게시글 ID 가져오기
+    const urlParams = new URLSearchParams(window.location.search);
+    const postId = urlParams.get('id');
  
     // 사용자 정보 표시
     function displayUserInfo() {
@@ -43,8 +49,6 @@ document.addEventListener('DOMContentLoaded', function() {
  
     // 게시글 데이터 로드
     function loadPostData() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const postId = urlParams.get('id');
         const posts = JSON.parse(localStorage.getItem('posts') || '[]');
         const post = posts.find(p => p.id === Number(postId));
  
@@ -177,15 +181,12 @@ document.addEventListener('DOMContentLoaded', function() {
  
     // 댓글 로드 함수
     function loadComments() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const postId = urlParams.get('id');
         const posts = JSON.parse(localStorage.getItem('posts') || '[]');
         const post = posts.find(p => p.id === Number(postId));
         
         if (!post) return;
         
-        // 댓글 목록 엘리먼트
-        const commentList = document.querySelector('.comment-list');
+        // 댓글 목록 초기화
         commentList.innerHTML = '';
         
         // 댓글 배열이 없으면 생성
@@ -193,10 +194,25 @@ document.addEventListener('DOMContentLoaded', function() {
             post.commentsList = [];
         }
         
+        // 현재 로그인한 사용자 정보
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        
         // 댓글 출력
         post.commentsList.forEach(comment => {
             const commentElement = document.createElement('div');
             commentElement.className = 'comment-item';
+            commentElement.dataset.commentId = comment.id;
+            
+            // 현재 사용자가 작성한 댓글인지 확인
+            const isAuthor = currentUser.nickname === comment.author;
+            
+            // 댓글 작성자와 현재 사용자가 같은 경우에만 수정/삭제 버튼 표시
+            const actionButtons = isAuthor ? `
+                <div class="comment-actions">
+                    <button class="comment-edit-btn">수정</button>
+                    <button class="comment-delete-btn">삭제</button>
+                </div>
+            ` : '';
             
             commentElement.innerHTML = `
                 <div class="comment-author">
@@ -205,16 +221,116 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span class="comment-author-name">${comment.author}</span>
                         <span class="comment-date">${new Date(comment.createdAt).toLocaleString()}</span>
                     </div>
+                    ${actionButtons}
                 </div>
                 <div class="comment-text">${comment.text}</div>
+                <div class="comment-edit-form" style="display: none;">
+                    <textarea class="edit-textarea">${comment.text}</textarea>
+                    <div class="edit-buttons">
+                        <button class="save-edit-btn">저장</button>
+                        <button class="cancel-edit-btn">취소</button>
+                    </div>
+                </div>
             `;
             
             commentList.appendChild(commentElement);
+            
+            // 수정/삭제 버튼 이벤트 추가 (작성자인 경우만)
+            if (isAuthor) {
+                const editBtn = commentElement.querySelector('.comment-edit-btn');
+                const deleteBtn = commentElement.querySelector('.comment-delete-btn');
+                const commentText = commentElement.querySelector('.comment-text');
+                const editForm = commentElement.querySelector('.comment-edit-form');
+                const editTextarea = commentElement.querySelector('.edit-textarea');
+                const saveBtn = commentElement.querySelector('.save-edit-btn');
+                const cancelBtn = commentElement.querySelector('.cancel-edit-btn');
+                
+                // 수정 버튼 클릭 시
+                editBtn.addEventListener('click', function() {
+                    commentText.style.display = 'none';
+                    editForm.style.display = 'block';
+                    editTextarea.focus();
+                });
+                
+                // 취소 버튼 클릭 시
+                cancelBtn.addEventListener('click', function() {
+                    commentText.style.display = 'block';
+                    editForm.style.display = 'none';
+                    editTextarea.value = comment.text; // 원래 텍스트로 복원
+                });
+                
+                // 저장 버튼 클릭 시
+                saveBtn.addEventListener('click', function() {
+                    const newText = editTextarea.value.trim();
+                    if (!newText) {
+                        alert('댓글 내용을 입력해주세요.');
+                        return;
+                    }
+                    
+                    // 댓글 수정 처리
+                    updateComment(comment.id, newText);
+                    
+                    // UI 업데이트
+                    commentText.textContent = newText;
+                    commentText.style.display = 'block';
+                    editForm.style.display = 'none';
+                });
+                
+                // 삭제 버튼 클릭 시
+                deleteBtn.addEventListener('click', function() {
+                    if (confirm('댓글을 삭제하시겠습니까?')) {
+                        deleteComment(comment.id);
+                    }
+                });
+            }
         });
         
         // 댓글 수 업데이트
         const commentStat = document.querySelectorAll('.stat-value')[2];
         commentStat.textContent = post.commentsList.length;
+    }
+    
+    // 댓글 수정 함수
+    function updateComment(commentId, newText) {
+        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+        const postIndex = posts.findIndex(p => p.id === Number(postId));
+        
+        if (postIndex === -1) return;
+        
+        const commentIndex = posts[postIndex].commentsList.findIndex(c => c.id === commentId);
+        
+        if (commentIndex === -1) return;
+        
+        // 댓글 내용 업데이트
+        posts[postIndex].commentsList[commentIndex].text = newText;
+        posts[postIndex].commentsList[commentIndex].modifiedAt = new Date().toISOString();
+        
+        // localStorage 업데이트
+        localStorage.setItem('posts', JSON.stringify(posts));
+        
+        alert('댓글이 수정되었습니다.');
+    }
+    
+    // 댓글 삭제 함수
+    function deleteComment(commentId) {
+        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+        const postIndex = posts.findIndex(p => p.id === Number(postId));
+        
+        if (postIndex === -1) return;
+        
+        // 댓글 삭제
+        posts[postIndex].commentsList = posts[postIndex].commentsList.filter(c => c.id !== commentId);
+        
+        // 댓글 수 업데이트
+        posts[postIndex].comments = posts[postIndex].commentsList.length;
+        
+        // localStorage 업데이트
+        localStorage.setItem('posts', JSON.stringify(posts));
+        
+        // 댓글 목록 다시 로드
+        loadComments();
+        
+        alert('댓글이 삭제되었습니다.');
     }
  
     // 드롭다운 메뉴 토글
@@ -262,15 +378,16 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     });
 
-    // 댓글 폼 제출 이벤트
-    commentForm.addEventListener('submit', function(e) {
+    // 댓글 등록 버튼 클릭 이벤트
+    commentSubmitBtn.addEventListener('click', function(e) {
         e.preventDefault();
         
         const commentText = commentTextarea.value.trim();
-        if (!commentText) return;
+        if (!commentText) {
+            alert('댓글 내용을 입력해주세요.');
+            return;
+        }
         
-        const urlParams = new URLSearchParams(window.location.search);
-        const postId = urlParams.get('id');
         const posts = JSON.parse(localStorage.getItem('posts') || '[]');
         const postIndex = posts.findIndex(p => p.id === Number(postId));
         
