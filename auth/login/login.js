@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const passwordHelper = passwordInput.parentElement.querySelector('.helper-text');
     const loginButton = document.querySelector('.login-button');
     
-    // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
+    // API URL을 스프링부트 백엔드 주소로 설정
     const API_URL = 'http://localhost:8080/api';
 
     // 이메일 유효성 검사 함수
@@ -30,21 +30,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             
-            const user = await response.json();
+            const data = await response.json();
             
             // 서버에서 받은 토큰 저장 (인증에 필요)
-            if (user.token) {
-                sessionStorage.setItem('token', user.token);
+            if (data.token) {
+                sessionStorage.setItem('token', data.token);
             }
             
             sessionStorage.setItem('isLoggedIn', 'true');
             sessionStorage.setItem('userEmail', email);
             
-            return user;
+            // 백엔드가 user 객체를 직접 반환하는 경우
+            if (data.user) {
+                return data.user;
+            }
+            
+            // 또는 응답 자체가 user 객체인 경우
+            return data;
         } catch (error) {
             console.error('API 로그인 검증 중 에러 발생:', error);
             
-            // API 호출 실패 시 localStorage로 폴백
+            // API 호출 실패 시 localStorage로 폴백 (개발용)
             console.log('localStorage로 폴백 로그인 시도');
             console.log('현재 저장된 users:', localStorage.getItem('users'));
             
@@ -123,7 +129,9 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (user) {
                 console.log('로그인 성공:', user);
+                // 사용자 정보 로컬 스토리지에 저장
                 localStorage.setItem('currentUser', JSON.stringify(user));
+                // 로그인 성공 후 메인 페이지로 이동
                 window.location.href = '../../post/index/index.html';
             } else {
                 console.log('로그인 실패: 사용자를 찾을 수 없음');
