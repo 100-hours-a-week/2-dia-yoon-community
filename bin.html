@@ -1,10 +1,24 @@
-<button onclick="clearLocalStorage()">localStorage 비우기</button>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>커뮤니티</title>
+    <!-- 스타일시트 등 필요한 리소스 추가 -->
+    <link rel="stylesheet" href="경로/style.css">
+</head>
+<body>
+<!-- 여기에 페이지 콘텐츠 -->
+<div id="app">
+    <h1>커뮤니티 게시판</h1>
+    <div id="post-container">
+        <!-- 게시글이 여기에 로드됩니다 -->
+        <p>게시글을 불러오는 중...</p>
+    </div>
+</div>
 
-<script>
-function clearLocalStorage() {
-  localStorage.clear();
-  alert('localStorage가 비워졌습니다.');
-  // 페이지 새로고침
-  location.reload();
-}
-</script>
+<!-- API와 메인 스크립트 연결 -->
+<script src="js/api.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
