@@ -139,7 +139,7 @@ const userAPI = {
 // 게시글 관련 API
 const postAPI = {
     // 게시글 목록 가져오기
-    getPosts: (page = 0, size = 10) => {
+    getPosts: (page = 1, size = 10) => {
         return fetchAPI(`/posts?page=${page}&size=${size}`);
     },
     
@@ -150,6 +150,7 @@ const postAPI = {
     
     // 게시글 작성
     createPost: (postData) => {
+        console.log('게시글 작성 API 요청 데이터:', postData);
         return fetchAPI('/posts', {
             method: 'POST',
             body: JSON.stringify(postData)
