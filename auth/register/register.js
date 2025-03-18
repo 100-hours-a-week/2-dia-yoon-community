@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const nicknameHelperText = nicknameInput.parentElement.querySelector('.helper-text');
     
     // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
-    const API_URL = 'https://api.example.com';
+    const API_URL = 'http://localhost:8080/api';
 
     // 초기 헬퍼 텍스트 설정
     profileHelperText.textContent = "* 프로필 사진을 추가해주세요";
@@ -31,14 +31,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch를 사용한 이메일 중복 검사
     async function checkEmailDuplicate(email) {
         try {
-            const response = await fetch(`${API_URL}/users/check-email?email=${encodeURIComponent(email)}`);
+            // 수정된 API 경로: /users/check-email -> /auth/check-email
+            const response = await fetch(`${API_URL}/auth/check-email?email=${encodeURIComponent(email)}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             
-            const result = await response.json();
-            return result.isDuplicate; // true면 중복, false면 사용 가능
+            const apiResponse = await response.json();
+            // ApiResponse 형식에서 데이터 추출
+            return apiResponse.data && apiResponse.data.isDuplicate;
         } catch (error) {
             console.error('이메일 중복 검사 API 호출 중 오류:', error);
             
@@ -51,14 +53,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch를 사용한 닉네임 중복 검사
     async function checkNicknameDuplicate(nickname) {
         try {
-            const response = await fetch(`${API_URL}/users/check-nickname?nickname=${encodeURIComponent(nickname)}`);
+            // 수정된 API 경로: /users/check-nickname -> /auth/check-nickname
+            const response = await fetch(`${API_URL}/auth/check-nickname?nickname=${encodeURIComponent(nickname)}`);
             
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             
-            const result = await response.json();
-            return result.isDuplicate; // true면 중복, false면 사용 가능
+            const apiResponse = await response.json();
+            // ApiResponse 형식에서 데이터 추출
+            return apiResponse.data && apiResponse.data.isDuplicate;
         } catch (error) {
             console.error('닉네임 중복 검사 API 호출 중 오류:', error);
             
@@ -313,6 +317,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch API를 사용한 회원가입 요청
     async function registerUser(userData) {
         try {
+            console.log('회원가입 요청 전송:', userData);
+            // API 경로 수정: auth/register (앞에 /api/가 이미 포함됨)
             const response = await fetch(`${API_URL}/auth/register`, {
                 method: 'POST',
                 headers: {
@@ -322,11 +328,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                // 오류 응답 처리 개선
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
             
             const result = await response.json();
-            return result;
+            console.log('회원가입 응답:', result);
+            // ApiResponse 형식에서 데이터 추출
+            return result.data || result;
         } catch (error) {
             console.error('회원가입 API 호출 중 오류:', error);
             throw error;
@@ -365,20 +375,20 @@ document.addEventListener('DOMContentLoaded', function() {
             email,
             password,
             nickname,
-            profileImage,
-            createdAt: new Date().toISOString()
+            profileImage
         };
 
         try {
             // Fetch API를 사용하여 회원가입 요청
-            await registerUser(newUser);
+            const result = await registerUser(newUser);
             
             alert('회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.');
             window.location.href = '../login/login.html';
         } catch (error) {
             console.error('회원가입 처리 중 오류 발생:', error);
+            alert('회원가입 중 오류가 발생했습니다: ' + error.message);
             
-            // API 호출 실패 시 localStorage에 직접 저장
+            // 개발 환경에서만 사용하는 폴백 로직 (프로덕션에서는 제거 권장)
             try {
                 // 현재 users 배열 가져오기
                 let users = [];
@@ -392,6 +402,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     users = [];
                 }
 
+                newUser.createdAt = new Date().toISOString();
                 users.push(newUser);
                 console.log('Saving user to localStorage:', newUser);
                 
@@ -399,11 +410,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 localStorage.setItem('users', JSON.stringify(users));
                 console.log('Users saved to localStorage');
                 
-                alert('회원가입이 완료되었습니다. 로그인 페이지로 이동합니다.');
+                alert('서버 연결에 실패하여 로컬에 임시 저장되었습니다. 로그인 페이지로 이동합니다.');
                 window.location.href = '../login/login.html';
             } catch (localError) {
                 console.error('localStorage 저장 중 오류:', localError);
-                alert('회원가입 중 오류가 발생했습니다: ' + error.message);
+                alert('회원가입에 완전히 실패했습니다. 나중에 다시 시도해주세요.');
             }
         }
     });
