@@ -25,20 +25,21 @@ document.addEventListener('DOMContentLoaded', function() {
     const profileDropdown = document.getElementById('profileDropdown');
     const menuList = document.getElementById('menuList');
     const titleCounter = document.querySelector('.title-counter');
+    const backBtn = document.querySelector('.back-btn');
 
     // URL에서 게시글 ID 가져오기
     const urlParams = new URLSearchParams(window.location.search);
     const postId = urlParams.get('id');
     
     // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
-    const API_BASE_URL = 'https://api.example.com';
+    const API_URL = 'http://localhost:8080/api';
     
     // 현재 게시글 데이터 저장용 변수
     let originalPost = null;
     let hasImageChanged = false;
     let newImageData = null;
 
-    // 극단적인 이미지 압축 함수
+    // 이미지 압축 함수
     function compressImage(imgFile) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -47,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const img = new Image();
                 img.src = event.target.result;
                 img.onload = function() {
-                    // 매우 작은 크기로 설정 (300x300 픽셀)
+                    // 크기 조정
                     const canvas = document.createElement('canvas');
                     const MAX_WIDTH = 300;
                     const MAX_HEIGHT = 300;
@@ -72,18 +73,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // 매우 낮은 품질로 압축 (0.1 = 10% 품질)
+                    // 낮은 품질로 압축 (0.1 = 10% 품질)
                     const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.1);
-                    
-                    // 추가 검사: 결과가 data:image/jpeg;base64, 로 시작하는지 확인
-                    if (!compressedDataUrl.startsWith('data:image/jpeg;base64,')) {
-                        reject(new Error('이미지 형식 오류'));
-                        return;
-                    }
                     
                     // 이미지 크기 확인 (대략적인 계산)
                     const base64Length = compressedDataUrl.length - 'data:image/jpeg;base64,'.length;
-                    const sizeInBytes = base64Length * 0.75; // base64는 원본 크기의 약 4/3
+                    const sizeInBytes = base64Length * 0.75;
                     const sizeInKB = sizeInBytes / 1024;
                     
                     console.log(`압축된 이미지 크기: 약 ${sizeInKB.toFixed(2)}KB`);
@@ -93,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         console.log('이미지가 여전히 너무 큽니다. 추가 압축 수행...');
                         // 더 작은 크기로 다시 압축
                         const smallerCanvas = document.createElement('canvas');
-                        const SMALLER_MAX = 200; // 더 작은 크기로 제한
+                        const SMALLER_MAX = 200;
                         let smallerWidth = width;
                         let smallerHeight = height;
                         
@@ -130,16 +125,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Fetch를 사용하여 기존 게시글 데이터 불러오기
+    // 기존 게시글 데이터 불러오기
     async function fetchPostData() {
         try {
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}`);
+            const response = await fetch(`${API_URL}/posts/${postId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
             
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             
             const post = await response.json();
+            
+            // 권한 체크: 현재 사용자가 작성자인지 확인
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            if (!currentUser || (post.authorId !== currentUser.id && post.author !== currentUser.nickname)) {
+                alert('이 게시글을 수정할 권한이 없습니다.');
+                window.location.href = `../detail/detail.html?id=${postId}`;
+                return;
+            }
+            
             originalPost = post;
             displayPostData(post);
         } catch (error) {
@@ -148,11 +158,19 @@ document.addEventListener('DOMContentLoaded', function() {
             // API 호출 실패 시 localStorage 데이터 사용
             try {
                 const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-                const post = posts.find(p => p.id === Number(postId));
+                const post = posts.find(p => p.id == postId);
                 
                 if (!post) {
                     alert('게시글을 찾을 수 없습니다.');
                     window.location.href = '../index/index.html';
+                    return;
+                }
+                
+                // 권한 체크: 현재 사용자가 작성자인지 확인
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                if (!currentUser || (post.authorId !== currentUser.id && post.author !== currentUser.nickname)) {
+                    alert('이 게시글을 수정할 권한이 없습니다.');
+                    window.location.href = `../detail/detail.html?id=${postId}`;
                     return;
                 }
                 
@@ -172,7 +190,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // 제목과 내용 설정
         titleInput.value = post.title || '';
         contentInput.value = post.content || '';
-        titleCounter.textContent = `${(post.title || '').length}/26`;
+        if (titleCounter) {
+            titleCounter.textContent = `${(post.title || '').length}/26`;
+        }
 
         // 이미지가 있는 경우 미리보기 표시
         if (post.image) {
@@ -219,22 +239,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // 제목 글자수 카운터
-    titleInput.addEventListener('input', function() {
-        const length = this.value.length;
-        titleCounter.textContent = `${length}/26`;
-        
-        if (length > 26) {
-            this.value = this.value.substring(0, 26);
-            titleCounter.textContent = '26/26';
-        }
-    });
+    if (titleInput && titleCounter) {
+        titleInput.addEventListener('input', function() {
+            const length = this.value.length;
+            titleCounter.textContent = `${length}/26`;
+            
+            if (length > 26) {
+                this.value = this.value.substring(0, 26);
+                titleCounter.textContent = '26/26';
+            }
+        });
+    }
 
-    // Fetch를 사용한 게시글 업데이트
+    // 게시글 업데이트
     async function updatePost(updatedPost) {
         try {
-            const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
+            const response = await fetch(`${API_URL}/posts/${postId}`, {
                 method: 'PUT',
                 headers: {
+                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(updatedPost)
@@ -253,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // API 호출 실패 시 localStorage에서 직접 업데이트
             try {
                 const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-                const postIndex = posts.findIndex(p => p.id === Number(postId));
+                const postIndex = posts.findIndex(p => p.id == postId);
 
                 if (postIndex === -1) {
                     alert('게시글을 찾을 수 없습니다.');
@@ -277,7 +300,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     try {
                         const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-                        const postIndex = posts.findIndex(p => p.id === Number(postId));
+                        const postIndex = posts.findIndex(p => p.id == postId);
                         
                         if (postIndex !== -1) {
                             posts[postIndex] = updatedPost;
@@ -298,72 +321,85 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 폼 제출 처리
-    modifyForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
+    if (modifyForm) {
+        modifyForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
 
-        if (!titleInput.value.trim() || !contentInput.value.trim()) {
-            alert('제목과 내용을 모두 입력해주세요.');
-            return;
-        }
-
-        try {
-            // 게시글 데이터 수정 객체 준비
-            const updatedPost = {
-                ...originalPost,
-                title: titleInput.value.trim(),
-                content: contentInput.value.trim(),
-                modifiedAt: new Date().toISOString()
-            };
-
-            // 이미지가 변경된 경우에만 이미지 업데이트
-            if (hasImageChanged && newImageData) {
-                updatedPost.image = newImageData;
+            if (!titleInput.value.trim() || !contentInput.value.trim()) {
+                alert('제목과 내용을 모두 입력해주세요.');
+                return;
             }
 
-            // Fetch API를 사용하여 게시글 업데이트
-            await updatePost(updatedPost);
-        } catch (error) {
-            console.error('게시글 수정 중 오류 발생:', error);
-            alert('게시글 수정에 실패했습니다: ' + error.message);
-        }
-    });
+            try {
+                // 게시글 데이터 수정 객체 준비
+                const updatedPost = {
+                    ...originalPost,
+                    title: titleInput.value.trim(),
+                    content: contentInput.value.trim(),
+                    modifiedAt: new Date().toISOString()
+                };
+
+                // 이미지가 변경된 경우에만 이미지 업데이트
+                if (hasImageChanged && newImageData) {
+                    updatedPost.image = newImageData;
+                }
+
+                // API를 사용하여 게시글 업데이트
+                await updatePost(updatedPost);
+            } catch (error) {
+                console.error('게시글 수정 중 오류 발생:', error);
+                alert('게시글 수정에 실패했습니다: ' + error.message);
+            }
+        });
+    }
 
     // 뒤로가기 버튼
-    const backBtn = document.querySelector('.back-btn');
-    backBtn.addEventListener('click', function() {
-        window.location.href = `../detail/detail.html?id=${postId}`;
-    });
+    if (backBtn) {
+        backBtn.addEventListener('click', function() {
+            window.location.href = `../detail/detail.html?id=${postId}`;
+        });
+    }
 
     // 드롭다운 메뉴 관련 이벤트
-    profileDropdown.addEventListener('click', function(e) {
-        menuList.classList.toggle('show');
-        e.stopPropagation();
-    });
+    if (profileDropdown) {
+        profileDropdown.addEventListener('click', function(e) {
+            menuList.classList.toggle('show');
+            e.stopPropagation();
+        });
 
-    document.addEventListener('click', function() {
-        menuList.classList.remove('show');
-    });
+        document.addEventListener('click', function() {
+            menuList.classList.remove('show');
+        });
+    }
 
     // 메뉴 항목 클릭 이벤트
-    menuList.addEventListener('click', function(e) {
-        const item = e.target;
-        
-        switch(item.textContent) {
-            case '회원정보수정':
-                window.location.href = '../../auth/profile/profile.html';
-                break;
-            case '비밀번호수정':
-                window.location.href = '../../auth/password/password.html';
-                break;
-            case '로그아웃':
-                localStorage.removeItem('currentUser');
-                sessionStorage.removeItem('isLoggedIn');
-                sessionStorage.removeItem('userEmail');
-                window.location.href = '../../auth/login/login.html';
-                break;
-        }
-    });
+    if (menuList) {
+        menuList.addEventListener('click', function(e) {
+            const item = e.target;
+            
+            switch(item.textContent) {
+                case '회원정보수정':
+                    window.location.href = '../../auth/profile/profile.html';
+                    break;
+                case '비밀번호수정':
+                    window.location.href = '../../auth/password/password.html';
+                    break;
+                case '로그아웃':
+                    localStorage.removeItem('currentUser');
+                    sessionStorage.removeItem('isLoggedIn');
+                    sessionStorage.removeItem('userEmail');
+                    sessionStorage.removeItem('token');
+                    window.location.href = '../../auth/login/login.html';
+                    break;
+            }
+        });
+    }
 
     // 초기화
-    fetchPostData();
+    if (postId) {
+        fetchPostData();
+    } else {
+        alert('게시글 ID가 없습니다.');
+        window.location.href = '../index/index.html';
+    }
 });

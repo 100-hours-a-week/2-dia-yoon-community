@@ -23,9 +23,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const helperText = document.querySelector('.helper-text');
     const profileDropdown = document.getElementById('profileDropdown');
     const menuList = document.getElementById('menuList');
-    
-    // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
-    const API_URL = 'https://api.example.com/posts';
  
     // 현재 로그인한 사용자 정보 표시
     function displayUserInfo() {
@@ -162,6 +159,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 localStorage.removeItem('currentUser');
                 sessionStorage.removeItem('isLoggedIn');
                 sessionStorage.removeItem('userEmail');
+                sessionStorage.removeItem('token');
                 window.location.href = '../../auth/login/login.html';
                 break;
         }
@@ -201,24 +199,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
  
-    // Fetch API를 사용한 게시글 추가
+    // 게시글 추가 함수
     async function createPost(postData) {
         try {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(postData)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            
-            const createdPost = await response.json();
+            // API를 통해 게시글 생성
+            const result = await postAPI.createPost(postData);
             alert('게시글이 등록되었습니다.');
             window.location.href = '../index/index.html';
+            return result;
         } catch (error) {
             console.error('게시글 생성 중 오류:', error);
             
@@ -259,6 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     alert('게시글 등록에 실패했습니다.');
                 }
             }
+            throw error;
         }
     }
  
@@ -278,21 +267,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
             
             const postData = {
-                id: Date.now(),
                 title,
                 content,
                 image: uploadedImage,
-                createdAt: new Date().toISOString(),
+                authorId: currentUser.id, // 백엔드에서 필요한 경우
                 author: currentUser.nickname,
-                authorImage: currentUser.profileImage,
-                likes: 0,
-                comments: 0,
-                views: 0,
-                likedBy: []
+                authorImage: currentUser.profileImage
             };
             
-            // Fetch API를 사용하여 게시글 생성
-            createPost(postData);
+            // API를 사용하여 게시글 생성
+            await createPost(postData);
         } catch (error) {
             console.error('게시글 저장 중 오류 발생:', error);
             alert('게시글 등록에 실패했습니다: ' + error.message);

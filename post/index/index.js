@@ -30,20 +30,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
-    const API_URL = 'https://api.example.com/posts';
-
-    // Fetch를 사용하여 게시글 목록 가져오기
+    // 게시글 목록 가져오기 함수
     async function fetchPosts() {
         try {
-            const response = await fetch(API_URL);
-            
-            // 서버 응답 검사
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            
-            const posts = await response.json();
+            // API를 통해 게시글 목록 가져오기
+            const posts = await postAPI.getPosts();
             displayPosts(posts);
         } catch (error) {
             console.error('게시글을 불러오는 중 오류 발생:', error);
@@ -61,7 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const postList = document.querySelector('.post-list');
         postList.innerHTML = ''; // 기존 목록 초기화
 
-        if (posts.length === 0) {
+        if (!posts || posts.length === 0) {
             postList.innerHTML = '<div class="no-posts">게시글이 없습니다.</div>';
             return;
         }
@@ -114,6 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 localStorage.removeItem('currentUser');
                 sessionStorage.removeItem('isLoggedIn');
                 sessionStorage.removeItem('userEmail');
+                sessionStorage.removeItem('token');
                 window.location.href = '../../auth/login/login.html';
                 break;
         }
@@ -142,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기화 함수
     function initialize() {
         displayUserInfo();
-        fetchPosts(); // localStorage 직접 접근하는 대신 fetch 사용
+        fetchPosts();
     }
 
     // 초기화 실행
