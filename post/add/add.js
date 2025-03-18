@@ -199,58 +199,97 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
  
+    // API 요청 함수 디버깅용 래퍼
+    async function fetchWithDebug(apiFunction, ...args) {
+        try {
+            console.log(`API 호출: ${apiFunction.name} 함수, 인자:`, ...args);
+            const result = await apiFunction(...args);
+            console.log(`API 응답 결과:`, result);
+            return result;
+        } catch (error) {
+            console.error(`API 에러 (${apiFunction.name}):`, error);
+            throw error;
+        }
+    }
+
     // 게시글 추가 함수
     async function createPost(postData) {
         try {
-            // API를 통해 게시글 생성
-            const result = await postAPI.createPost(postData);
+            // 백엔드 API 형식에 맞게 데이터 변환 - 정확히 백엔드 DTO 필드와 일치시킴
+            const apiPostData = {
+                title: postData.title,
+                content: postData.content,
+                postImage: postData.image || null
+            };
+            
+            console.log('백엔드로 전송할 데이터:', apiPostData);
+            
+            // 디버깅을 위한 래퍼 함수 사용
+            const result = await fetchWithDebug(postAPI.createPost, apiPostData);
+            
             alert('게시글이 등록되었습니다.');
             window.location.href = '../index/index.html';
             return result;
         } catch (error) {
             console.error('게시글 생성 중 오류:', error);
             
-            // API 호출 실패 시 localStorage에 직접 저장
-            try {
-                let posts = [];
-                try {
-                    posts = JSON.parse(localStorage.getItem('posts') || '[]');
-                } catch (error) {
-                    console.error('기존 게시글 데이터 파싱 오류:', error);
-                    posts = [];
-                }
-                
-                // 새 게시글을 맨 앞에 추가
-                posts.unshift(postData);
-                
-                // localStorage에 저장 시도
-                localStorage.setItem('posts', JSON.stringify(posts));
-                alert('게시글이 등록되었습니다.');
-                window.location.href = '../index/index.html';
-            } catch (localError) {
-                console.error('localStorage 저장 중 오류:', localError);
-                
-                // 오류 발생 시 이미지 없이 저장 시도
-                if (postData.image) {
-                    postData.image = null;
-                    
-                    try {
-                        let posts = JSON.parse(localStorage.getItem('posts') || '[]');
-                        posts.unshift(postData);
-                        localStorage.setItem('posts', JSON.stringify(posts));
-                        alert('이미지를 제외한 게시글이 등록되었습니다.');
-                        window.location.href = '../index/index.html';
-                    } catch (finalError) {
-                        alert('게시글 등록에 실패했습니다. 게시글 데이터를 정리한 후 다시 시도해주세요.');
-                    }
-                } else {
-                    alert('게시글 등록에 실패했습니다.');
-                }
+            // 오류가 401 (인증 실패)인 경우 로그인 페이지로 리디렉션
+            if (error.message && error.message.includes('401')) {
+                alert('로그인이 필요하거나 세션이 만료되었습니다.');
+                window.location.href = '../../auth/login/login.html';
+                return;
             }
+            
+            // 서버 오류(500)인 경우 로컬 저장으로 대체
+            if (error.message && error.message.includes('500')) {
+                alert('서버 오류가 발생했습니다. 로컬에 저장합니다.');
+                
+                // 로컬 저장소에 저장 시도
+                try {
+                    let posts = [];
+                    try {
+                        posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                    } catch (parseError) {
+                        console.error('기존 게시글 데이터 파싱 오류:', parseError);
+                        posts = [];
+                    }
+                    
+                    // 새 게시글을 맨 앞에 추가
+                    posts.unshift(postData);
+                    
+                    // localStorage에 저장 시도
+                    localStorage.setItem('posts', JSON.stringify(posts));
+                    alert('게시글이 로컬에 등록되었습니다.');
+                    window.location.href = '../index/index.html';
+                } catch (localError) {
+                    console.error('localStorage 저장 중 오류:', localError);
+                    
+                    // 오류 발생 시 이미지 없이 저장 시도
+                    if (postData.image) {
+                        postData.image = null;
+                        
+                        try {
+                            let posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                            posts.unshift(postData);
+                            localStorage.setItem('posts', JSON.stringify(posts));
+                            alert('이미지를 제외한 게시글이 로컬에 등록되었습니다.');
+                            window.location.href = '../index/index.html';
+                        } catch (finalError) {
+                            alert('게시글 등록에 실패했습니다. 게시글 데이터를 정리한 후 다시 시도해주세요.');
+                        }
+                    } else {
+                        alert('게시글 등록에 실패했습니다.');
+                    }
+                }
+            } else {
+                // 기타 오류
+                alert('게시글 등록에 실패했습니다: ' + error.message);
+            }
+            
             throw error;
         }
     }
- 
+
     // 폼 제출 이벤트
     postForm.addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -258,28 +297,55 @@ document.addEventListener('DOMContentLoaded', function() {
         const title = titleInput.value.trim();
         const content = contentTextarea.value.trim();
         
-        if (!title || !content) {
-            alert('제목과 내용을 모두 입력해주세요.');
+        if (!title) {
+            alert('제목을 입력해주세요.');
+            titleInput.focus();
             return;
         }
- 
+        
+        if (!content) {
+            alert('내용을 입력해주세요.');
+            contentTextarea.focus();
+            return;
+        }
+
         try {
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
             
+            if (!currentUser) {
+                alert('로그인 정보를 찾을 수 없습니다.');
+                window.location.href = '../../auth/login/login.html';
+                return;
+            }
+            
+            // 프론트엔드용 포스트 데이터 (로컬 저장용)
             const postData = {
                 title,
                 content,
                 image: uploadedImage,
-                authorId: currentUser.id, // 백엔드에서 필요한 경우
+                authorId: currentUser.id,
                 author: currentUser.nickname,
-                authorImage: currentUser.profileImage
+                authorImage: currentUser.profileImage,
+                createdAt: new Date().toISOString(),
+                likes: 0,
+                views: 0,
+                comments: 0
             };
+            
+            // 전송 전 토큰 확인
+            const token = sessionStorage.getItem('token');
+            if (!token) {
+                alert('인증 정보가 없습니다. 다시 로그인해주세요.');
+                window.location.href = '../../auth/login/login.html';
+                return;
+            }
+            
+            console.log('게시글 생성 시도:', postData);
             
             // API를 사용하여 게시글 생성
             await createPost(postData);
         } catch (error) {
             console.error('게시글 저장 중 오류 발생:', error);
-            alert('게시글 등록에 실패했습니다: ' + error.message);
         }
     });
  
