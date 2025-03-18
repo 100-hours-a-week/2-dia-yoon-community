@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!checkLogin()) return;
 
     // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
-    const API_URL = 'https://api.example.com';
+    const API_URL = 'http://localhost:8080/api';
 
     const profileDropdown = document.getElementById('profileDropdown');
     const menuList = document.getElementById('menuList');
