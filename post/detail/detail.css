@@ -317,6 +317,25 @@ main {
     }
 }
 
+/* 좋아요 버튼 스타일 */
+.stat-box {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.stat-box:hover {
+    background-color: #f5f5f5;
+}
+
+.stat-box.liked {
+    color: #ff4757;
+    font-weight: bold;
+}
+
+.stat-box.liked .stat-value {
+    color: #ff4757;
+}
+
 /* 댓글 수정 및 삭제 버튼 */
 .comment-actions {
     display: flex;
