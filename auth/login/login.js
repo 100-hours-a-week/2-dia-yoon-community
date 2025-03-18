@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fetch API를 사용한 로그인 검증 함수
     async function validateLogin(email, password) {
         try {
+            console.log('API 로그인 시도:', email);
+            
             const response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
@@ -26,27 +28,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({ email, password })
             });
             
+            console.log('API 응답 상태:', response.status);
+            
             if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                const errorText = await response.text();
+                console.error('로그인 실패 응답:', errorText);
+                throw new Error(`로그인 실패: ${response.status}`);
             }
             
             const data = await response.json();
+            console.log('API 응답 데이터:', data);
             
-            // 서버에서 받은 토큰 저장 (인증에 필요)
-            if (data.token) {
-                sessionStorage.setItem('token', data.token);
+            // 백엔드 응답 구조에 따라 토큰 추출
+            let token = null;
+            let userData = {};
+            
+            // 응답 구조 분석
+            if (data.data && data.data.token) {
+                // { success: true, message: '로그인 성공', data: { token: '...', ... } }
+                token = data.data.token;
+                userData = {
+                    id: data.data.userId || data.data.id,
+                    email: data.data.email || email,
+                    nickname: data.data.nickname || email.split('@')[0],
+                    profileImage: data.data.profileImage || null
+                };
+            } else if (data.token) {
+                // { token: '...', userId: 1, ... }
+                token = data.token;
+                userData = {
+                    id: data.userId || data.id,
+                    email: data.email || email,
+                    nickname: data.nickname || email.split('@')[0],
+                    profileImage: data.profileImage || null
+                };
             }
             
-            sessionStorage.setItem('isLoggedIn', 'true');
-            sessionStorage.setItem('userEmail', email);
-            
-            // 백엔드가 user 객체를 직접 반환하는 경우
-            if (data.user) {
-                return data.user;
+            // 토큰 저장
+            if (token) {
+                console.log('토큰 저장됨:', token);
+                sessionStorage.setItem('token', token);
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('userEmail', email);
+                
+                return userData;
+            } else {
+                console.error('토큰을 찾을 수 없음:', data);
+                throw new Error('응답에서 토큰을 찾을 수 없습니다');
             }
-            
-            // 또는 응답 자체가 user 객체인 경우
-            return data;
         } catch (error) {
             console.error('API 로그인 검증 중 에러 발생:', error);
             
@@ -64,6 +93,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (user) {
                     sessionStorage.setItem('isLoggedIn', 'true');
                     sessionStorage.setItem('userEmail', email);
+                    
+                    // 테스트용 가짜 토큰 생성 (개발 중에만 사용)
+                    const mockToken = `dev-token-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                    sessionStorage.setItem('token', mockToken);
+                    
                     return user;
                 }
                 return null;
@@ -113,6 +147,13 @@ document.addEventListener('DOMContentLoaded', function() {
         updateButtonState();
     });
 
+    // 세션 저장소 초기화 (이전 로그인 정보 삭제)
+    function clearSessionData() {
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('isLoggedIn');
+        sessionStorage.removeItem('userEmail');
+    }
+
     // 폼 제출 이벤트
     loginForm.addEventListener('submit', async function(event) {
         event.preventDefault();
@@ -121,9 +162,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const email = emailInput.value;
         const password = passwordInput.value;
 
+        // 기존 세션 초기화
+        clearSessionData();
+
         try {
             // 로그인 시도 중인 정보 출력
-            console.log('로그인 시도:', { email, password });
+            console.log('로그인 시도:', { email });
             
             const user = await validateLogin(email, password);
             
@@ -131,7 +175,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('로그인 성공:', user);
                 // 사용자 정보 로컬 스토리지에 저장
                 localStorage.setItem('currentUser', JSON.stringify(user));
+                
+                // 로그인 상태 확인
+                const token = sessionStorage.getItem('token');
+                const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+                
+                console.log('로그인 후 상태 확인:', {
+                    token: token ? '존재함' : '없음',
+                    isLoggedIn: isLoggedIn
+                });
+                
+                if (!token || !isLoggedIn) {
+                    console.error('로그인은 성공했으나 인증 정보가 없습니다.');
+                    alert('로그인은 성공했으나 인증 정보 저장에 문제가 발생했습니다. 다시 시도해주세요.');
+                    loginButton.disabled = false;
+                    return;
+                }
+                
                 // 로그인 성공 후 메인 페이지로 이동
+                alert('로그인에 성공했습니다.');
                 window.location.href = '../../post/index/index.html';
             } else {
                 console.log('로그인 실패: 사용자를 찾을 수 없음');
@@ -142,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('로그인 처리 중 에러 발생:', error);
-            emailHelper.textContent = '* 로그인 중 오류가 발생했습니다';
+            emailHelper.textContent = '* 로그인 중 오류가 발생했습니다: ' + error.message;
             emailHelper.style.color = 'red';
             loginButton.disabled = false;
         }
