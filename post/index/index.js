@@ -33,9 +33,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // 게시글 목록 가져오기 함수
     async function fetchPosts() {
         try {
-            // API를 통해 게시글 목록 가져오기
-            const posts = await postAPI.getPosts();
-            displayPosts(posts);
+            // API를 통해 게시글 목록 가져오기 (페이지는 1부터 시작)
+            const response = await postAPI.getPosts(1);
+            console.log('API 응답:', response);
+            displayPosts(response);
         } catch (error) {
             console.error('게시글을 불러오는 중 오류 발생:', error);
             // API 요청이 실패한 경우 대체로 localStorage 데이터 사용
@@ -48,19 +49,64 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 게시글 목록 표시 함수
-    function displayPosts(posts) {
+    function displayPosts(data) {
         const postList = document.querySelector('.post-list');
         postList.innerHTML = ''; // 기존 목록 초기화
-
-        if (!posts || posts.length === 0) {
+        
+        console.log('원본 데이터:', data);
+        
+        // 데이터 구조가 어떤 형태인지 깊이 살펴보기
+        let posts = data;
+        
+        // API 응답 구조 검사 (data가 API 응답 객체인 경우)
+        if (!Array.isArray(data) && data !== null && typeof data === 'object') {
+            // 가능한 필드들을 출력해 확인
+            console.log('데이터 필드:', Object.keys(data));
+            
+            // PostListResponse 구조인 경우
+            if (data.posts && Array.isArray(data.posts)) {
+                posts = data.posts;
+                console.log('posts 필드 발견:', posts);
+            }
+            // 다른 구조인 경우 (data 자체가 응답 객체인 경우)
+            else if (data.data) {
+                console.log('data 필드 발견:', data.data);
+                if (Array.isArray(data.data)) {
+                    posts = data.data;
+                } else if (data.data.posts && Array.isArray(data.data.posts)) {
+                    posts = data.data.posts;
+                    console.log('data.posts 필드 발견:', posts);
+                }
+            }
+        }
+        
+        if (!Array.isArray(posts)) {
+            console.error('배열 형태의 게시글을 찾을 수 없습니다:', data);
+            postList.innerHTML = '<div class="no-posts">데이터 형식 오류</div>';
+            return;
+        }
+        
+        if (posts.length === 0) {
             postList.innerHTML = '<div class="no-posts">게시글이 없습니다.</div>';
             return;
         }
-
+        
+        // 첫 번째 게시글의 구조를 확인해 필드명 파악
+        const firstPost = posts[0];
+        console.log('첫 번째 게시글 구조:', firstPost);
+        console.log('첫 번째 게시글 필드:', Object.keys(firstPost));
+        
         posts.forEach(post => {
             const postElement = document.createElement('div');
             postElement.className = 'post-item';
-            postElement.dataset.postId = post.id;
+            
+            // ID 필드명 유연하게 처리 (id 또는 postId)
+            const postId = post.postId || post.id;
+            postElement.dataset.postId = postId;
+            
+            // 작성자 관련 필드 유연하게 처리
+            const authorName = post.authorNickname || post.author || '익명';
+            const authorImg = post.authorProfileImage || post.authorImage || '/images/default-profile.png';
             
             postElement.innerHTML = `
                 <h2>${post.title}</h2>
@@ -69,8 +115,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span class="date">${new Date(post.createdAt).toLocaleString()}</span>
                 </div>
                 <div class="post-author">
-                    <img src="${post.authorImage || '../images/default-profile.png'}" alt="프로필" class="author-image">
-                    <span>${post.author}</span>
+                    <img src="${authorImg}" alt="프로필" class="author-image">
+                    <span>${authorName}</span>
                 </div>
             `;
             
