@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginButton = document.querySelector('.login-button');
     
     // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
-    const API_URL = 'https://api.example.com';
+    const API_URL = 'http://localhost:8080/api';
 
     // 이메일 유효성 검사 함수
     function isValidEmail(email) {
