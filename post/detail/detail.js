@@ -56,8 +56,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 사용자 정보 표시
     function displayUserInfo() {
-        if (currentUser && currentUser.profileImage) {
-            profileDropdown.src = currentUser.profileImage;
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        const profileImage = document.querySelector('.profile-image') || document.getElementById('profileDropdown');
+        
+        if (currentUser && currentUser.profileImage && profileImage) {
+            console.log('프로필 이미지 설정:', currentUser.profileImage);
+            profileImage.src = currentUser.profileImage;
+        } else {
+            console.log('기본 프로필 이미지 사용');
+            // 기본 프로필 이미지 경로 설정
+            if(profileImage) profileImage.src = '../images/default-profile.png';
         }
     }
 
@@ -391,7 +399,7 @@ function updateLikeStatusAndUI(newLikedState) {
             
             // 수정 버튼 클릭 이벤트 
             editBtn.addEventListener('click', function() {
-                window.location.href = `../edit/edit.html?id=${postId}`;
+                window.location.href = `../modify/modify.html?id=${postId}`;
             });
             
             // 삭제 버튼 클릭 이벤트
@@ -809,46 +817,117 @@ function updateLikeStatusAndUI(newLikedState) {
 
     // 게시글 삭제
     async function deletePost() {
-        if (!confirm('게시글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+    // 사용자 확인 대화상자
+    if (!confirm('게시글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+        return; // 사용자가 취소한 경우
+    }
+    
+    try {
+        console.log('게시글 삭제 요청 - ID:', postId);
+        
+        // 토큰 가져오기
+        const token = sessionStorage.getItem('token');
+        if (!token) {
+            alert('로그인이 필요합니다.');
+            window.location.href = '../../auth/login/login.html';
             return;
         }
         
-        try {
-            const token = sessionStorage.getItem('token');
-            
-            const response = await fetch(`${API_URL}/posts/${postId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
+        // 서버에 삭제 요청 전송
+        const response = await fetch(`${API_URL}/posts/${postId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('삭제 요청 응답 상태:', response.status);
+        
+        if (!response.ok) {
+            // 응답 데이터 확인 (있는 경우)
+            let errorMessage = `HTTP error! Status: ${response.status}`;
+            try {
+                const errorData = await response.text();
+                if (errorData) {
+                    console.error('삭제 실패 응답:', errorData);
+                    errorMessage = errorData;
                 }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+            } catch (e) {
+                console.error('응답 데이터 파싱 오류:', e);
             }
             
-            alert('게시글이 삭제되었습니다.');
-            window.location.href = '../index/index.html';
-        } catch (error) {
-            console.error('게시글 삭제 중 오류:', error);
+            throw new Error(errorMessage);
+        }
+        
+        // 서버 응답 데이터 처리 (있는 경우)
+        let result;
+        try {
+            if (response.headers.get('content-length') !== '0') {
+                result = await response.json();
+                console.log('삭제 응답 데이터:', result);
+            } else {
+                console.log('응답 본문 없음 (성공)');
+            }
+        } catch (e) {
+            console.log('응답 데이터 없음 또는 JSON이 아님');
+        }
+        
+        // 로컬 스토리지에서도 게시글 삭제
+        try {
+            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+            const updatedPosts = posts.filter(p => p.id != postId);
+            localStorage.setItem('posts', JSON.stringify(updatedPosts));
             
-            // API 호출 실패 시 localStorage에서 직접 삭제
-            try {
-                const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-                const updatedPosts = posts.filter(p => p.id != postId);
-                
+            // 관련 댓글도 삭제
+            localStorage.removeItem(`comments_${postId}`);
+            
+            // 좋아요 정보 업데이트
+            const postsLikeInfo = JSON.parse(localStorage.getItem('postsLikeInfo') || '{}');
+            if (postsLikeInfo[postId]) {
+                delete postsLikeInfo[postId];
+                localStorage.setItem('postsLikeInfo', JSON.stringify(postsLikeInfo));
+            }
+        } catch (localError) {
+            console.error('로컬 스토리지 업데이트 중 오류:', localError);
+            // 로컬 스토리지 오류는 무시하고 계속 진행
+        }
+        
+        alert('게시글이 삭제되었습니다.');
+        window.location.href = '../index/index.html';
+    } catch (error) {
+        console.error('게시글 삭제 중 오류:', error);
+        
+        // 서버 오류 시 로컬 스토리지에서만 삭제 시도
+        try {
+            console.log('서버 삭제 실패, 로컬 저장소에서만 삭제 시도');
+            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+            const updatedPosts = posts.filter(p => p.id != postId);
+            
+            // 게시글 수 변경 확인
+            if (posts.length !== updatedPosts.length) {
                 localStorage.setItem('posts', JSON.stringify(updatedPosts));
                 
-                // 댓글도 삭제
+                // 관련 댓글도 삭제
                 localStorage.removeItem(`comments_${postId}`);
                 
-                alert('게시글이 삭제되었습니다.');
+                // 좋아요 정보 업데이트
+                const postsLikeInfo = JSON.parse(localStorage.getItem('postsLikeInfo') || '{}');
+                if (postsLikeInfo[postId]) {
+                    delete postsLikeInfo[postId];
+                    localStorage.setItem('postsLikeInfo', JSON.stringify(postsLikeInfo));
+                }
+                
+                alert('게시글이 로컬 저장소에서 삭제되었습니다.');
                 window.location.href = '../index/index.html';
-            } catch (localError) {
-                console.error('localStorage 업데이트 중 오류:', localError);
-                alert('게시글 삭제에 실패했습니다.');
+            } else {
+                alert('게시글을 찾을 수 없습니다.');
             }
+        } catch (localError) {
+            console.error('로컬 스토리지 삭제 중 오류:', localError);
+            alert('게시글 삭제에 실패했습니다: ' + error.message);
         }
+    }
     }
 
     // 좋아요 박스에 이벤트 리스너 추가
