@@ -20,11 +20,15 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             console.log('API 로그인 시도:', email);
             
-            const response = await fetch(`${API_URL}/auth/login`, {
+            const response = await fetch(`${API_URL}/users/login`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
                 },
+                cache: 'no-store',
                 body: JSON.stringify({ email, password })
             });
             
