@@ -33,51 +33,71 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 게시글별 댓글 수 가져오기
     function getPostCommentCounts() {
-    try {
-        const commentCounts = {};
-        
-        // 디버깅: 모든 로컬 스토리지 키 출력
-        console.log('로컬 스토리지 모든 키:');
-        for (let i = 0; i < localStorage.length; i++) {
-            console.log(`${i}: ${localStorage.key(i)}`);
-        }
-        
-        // localStorage에서 모든 키 확인
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
+        try {
+            const commentCounts = {};
             
-            // 댓글 관련 키 찾기 (여러 가능한 형식 고려)
-            if (key && (key.startsWith('comments_') || key.includes('comments'))) {
-                console.log('댓글 데이터 키 발견:', key);
+            // 디버깅: 모든 로컬 스토리지 키 출력
+            console.log('로컬 스토리지 모든 키:');
+            for (let i = 0; i < localStorage.length; i++) {
+                console.log(`${i}: ${localStorage.key(i)}`);
+            }
+            
+            // localStorage에서 모든 키 확인
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
                 
-                // postId 추출 시도
-                let postId;
-                if (key.startsWith('comments_')) {
-                    postId = key.split('_')[1]; // comments_123 -> 123
-                } else if (key.includes('comments')) {
-                    // 다른 형식의 키에서 추출 시도
-                    const matches = key.match(/\d+/);
-                    if (matches) postId = matches[0];
-                }
-                
-                if (postId) {
-                    try {
-                        const comments = JSON.parse(localStorage.getItem(key) || '[]');
-                        console.log(`게시글 ID ${postId}의 댓글 수:`, comments.length);
-                        commentCounts[postId] = comments.length;
-                    } catch (e) {
-                        console.error(`댓글 파싱 오류 (${key}):`, e);
+                // 댓글 관련 키 찾기 (주로 comments_ 형식 검색)
+                if (key && key.startsWith('comments_')) {
+                    console.log('댓글 데이터 키 발견:', key);
+                    
+                    // postId 추출 - comments_123 -> 123
+                    const postId = key.split('_')[1];
+                    
+                    if (postId) {
+                        try {
+                            const comments = JSON.parse(localStorage.getItem(key) || '[]');
+                            console.log(`게시글 ID ${postId}의 댓글 수:`, comments.length);
+                            commentCounts[postId] = comments.length;
+                        } catch (e) {
+                            console.error(`댓글 파싱 오류 (${key}):`, e);
+                        }
                     }
                 }
             }
+            
+            // detail.js에서 사용하는 다른 가능한 댓글 키 형식 검색 (하위 호환성 유지)
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                
+                // comments_ 형식이 아닌 다른 형식의 댓글 키 검색
+                if (key && !key.startsWith('comments_') && key.includes('comments')) {
+                    console.log('다른 형식의 댓글 키 발견:', key);
+                    
+                    // 숫자 패턴 추출 시도 (postId 추출)
+                    const matches = key.match(/\d+/);
+                    if (matches) {
+                        const postId = matches[0];
+                        
+                        // 이미 처리된 postId가 아닌 경우에만 처리
+                        if (!commentCounts[postId]) {
+                            try {
+                                const comments = JSON.parse(localStorage.getItem(key) || '[]');
+                                console.log(`게시글 ID ${postId}의 댓글 수 (다른 형식):`, comments.length);
+                                commentCounts[postId] = comments.length;
+                            } catch (e) {
+                                console.error(`댓글 파싱 오류 (${key}):`, e);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            console.log('게시글별 댓글 수 최종:', commentCounts);
+            return commentCounts;
+        } catch (error) {
+            console.error('댓글 수 정보 로드 중 오류:', error);
+            return {};
         }
-        
-        console.log('게시글별 댓글 수:', commentCounts);
-        return commentCounts;
-    } catch (error) {
-        console.error('댓글 수 정보 로드 중 오류:', error);
-        return {};
-    }
     }
 
     // 사용자 정보 표시 - 개선된 버전

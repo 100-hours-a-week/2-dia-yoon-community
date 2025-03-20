@@ -460,13 +460,34 @@ function updateLikeStatusAndUI(newLikedState) {
                 }
             }
             
-            // 댓글 수 업데이트 - 이 부분이 중요합니다!
+            // 댓글 수 업데이트
             if (comments && Array.isArray(comments)) {
                 commentsValue.textContent = comments.length;
+                
                 // postData가 있다면 여기도 업데이트
                 if (postData) {
                     postData.comments = comments.length;
                 }
+                
+                // ===== 새로 추가된 부분 =====
+                // 로컬 스토리지에 댓글 데이터 저장
+                localStorage.setItem(`comments_${postId}`, JSON.stringify(comments));
+                
+                // posts 배열에서 해당 게시글 업데이트
+                try {
+                    const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                    const postIndex = posts.findIndex(p => p.id == postId || p.postId == postId);
+                    
+                    if (postIndex > -1) {
+                        posts[postIndex].comments = comments.length;
+                        localStorage.setItem('posts', JSON.stringify(posts));
+                        console.log(`게시글 ID ${postId}의 댓글 수 로컬 스토리지 업데이트:`, comments.length);
+                    }
+                } catch (localError) {
+                    console.error('posts 배열 업데이트 중 오류:', localError);
+                    // 오류 발생해도 계속 진행
+                }
+                // ===== 새로 추가된 부분 끝 =====
             }
             
             // 응답 구조에 따라 다른 처리
@@ -483,11 +504,28 @@ function updateLikeStatusAndUI(newLikedState) {
                 if (localComments.length > 0) {
                     console.log('로컬 스토리지 댓글 데이터 사용:', localComments);
                     displayComments(localComments);
+                    
                     // 댓글 수 업데이트
                     commentsValue.textContent = localComments.length;
                     if (postData) {
                         postData.comments = localComments.length;
                     }
+                    
+                    // ===== 새로 추가된 부분 =====
+                    // posts 배열에서 해당 게시글 업데이트
+                    try {
+                        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                        const postIndex = posts.findIndex(p => p.id == postId || p.postId == postId);
+                        
+                        if (postIndex > -1) {
+                            posts[postIndex].comments = localComments.length;
+                            localStorage.setItem('posts', JSON.stringify(posts));
+                            console.log(`게시글 ID ${postId}의 댓글 수 로컬 업데이트 (API 실패):`, localComments.length);
+                        }
+                    } catch (updateError) {
+                        console.error('posts 배열 업데이트 중 오류 (API 실패):', updateError);
+                    }
+                    // ===== 새로 추가된 부분 끝 =====
                 }
             } catch (localError) {
                 console.error('로컬 스토리지 댓글 데이터 로드 중 오류:', localError);
@@ -540,7 +578,73 @@ function updateLikeStatusAndUI(newLikedState) {
         
         // 현재 로그인한 사용자 정보
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        function getPostCommentCounts() {
+    try {
+        const commentCounts = {};
         
+        // 디버깅: 모든 로컬 스토리지 키 출력
+        console.log('로컬 스토리지 모든 키:');
+        for (let i = 0; i < localStorage.length; i++) {
+            console.log(`${i}: ${localStorage.key(i)}`);
+        }
+        
+        // localStorage에서 모든 키 확인
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            
+            // 댓글 관련 키 찾기 (주로 comments_ 형식 검색)
+            if (key && key.startsWith('comments_')) {
+                console.log('댓글 데이터 키 발견:', key);
+                
+                // postId 추출 - comments_123 -> 123
+                const postId = key.split('_')[1];
+                
+                if (postId) {
+                    try {
+                        const comments = JSON.parse(localStorage.getItem(key) || '[]');
+                        console.log(`게시글 ID ${postId}의 댓글 수:`, comments.length);
+                        commentCounts[postId] = comments.length;
+                    } catch (e) {
+                        console.error(`댓글 파싱 오류 (${key}):`, e);
+                    }
+                }
+            }
+        }
+        
+        // detail.js에서 사용하는 다른 가능한 댓글 키 형식 검색 (하위 호환성 유지)
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            
+            // comments_ 형식이 아닌 다른 형식의 댓글 키 검색
+            if (key && !key.startsWith('comments_') && key.includes('comments')) {
+                console.log('다른 형식의 댓글 키 발견:', key);
+                
+                // 숫자 패턴 추출 시도 (postId 추출)
+                const matches = key.match(/\d+/);
+                if (matches) {
+                    const postId = matches[0];
+                    
+                    // 이미 처리된 postId가 아닌 경우에만 처리
+                    if (!commentCounts[postId]) {
+                        try {
+                            const comments = JSON.parse(localStorage.getItem(key) || '[]');
+                            console.log(`게시글 ID ${postId}의 댓글 수 (다른 형식):`, comments.length);
+                            commentCounts[postId] = comments.length;
+                        } catch (e) {
+                            console.error(`댓글 파싱 오류 (${key}):`, e);
+                        }
+                    }
+                }
+            }
+        }
+        
+        console.log('게시글별 댓글 수 최종:', commentCounts);
+        return commentCounts;
+    } catch (error) {
+        console.error('댓글 수 정보 로드 중 오류:', error);
+        return {};
+    }
+}
         // 댓글 목록 표시
         comments.forEach(comment => {
             const commentItem = document.createElement('div');
@@ -644,6 +748,53 @@ function updateLikeStatusAndUI(newLikedState) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             
+            // API 호출 성공 시에도 로컬 스토리지 업데이트
+            try {
+                // 로컬 스토리지에서 현재 댓글 목록 가져오기
+                let comments = JSON.parse(localStorage.getItem(`comments_${postId}`) || '[]');
+                
+                // 새로운 댓글 객체 생성 (백엔드 응답에서 가져오거나 직접 생성)
+                const responseData = await response.json();
+                let newCommentData;
+                
+                // API 응답으로부터 댓글 데이터 추출 시도
+                if (responseData && responseData.data) {
+                    newCommentData = responseData.data;
+                } else {
+                    // 응답에서 데이터를 가져올 수 없는 경우 직접 생성
+                    newCommentData = {
+                        id: Date.now(),
+                        commentId: Date.now(),
+                        content: content,
+                        postId: postId,
+                        authorNickname: currentUser.nickname,
+                        userId: currentUser.id,
+                        authorProfileImage: currentUser.profileImage,
+                        commentAt: new Date().toISOString()
+                    };
+                }
+                
+                // 댓글 목록에 추가
+                comments.push(newCommentData);
+                
+                // 로컬 스토리지에 저장
+                localStorage.setItem(`comments_${postId}`, JSON.stringify(comments));
+                
+                // 게시글 댓글 수 업데이트
+                // posts 배열에서 해당 게시글 업데이트
+                const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                const postIndex = posts.findIndex(p => p.id == postId || p.postId == postId);
+                
+                if (postIndex > -1) {
+                    posts[postIndex].comments = (posts[postIndex].comments || 0) + 1;
+                    localStorage.setItem('posts', JSON.stringify(posts));
+                    console.log(`게시글 ID ${postId}의 댓글 수 업데이트:`, posts[postIndex].comments);
+                }
+            } catch (localError) {
+                console.error('API 성공 후 로컬 스토리지 업데이트 오류:', localError);
+                // 로컬 저장 오류는 무시하고 계속 진행 (fetchComments에 영향 없음)
+            }
+            
             // 댓글 목록 다시 불러오기
             fetchComments();
             
@@ -657,7 +808,8 @@ function updateLikeStatusAndUI(newLikedState) {
         } catch (error) {
             console.error('댓글 추가 중 오류:', error);
             
-            // API 호출 실패 시 localStorage에 직접 저장
+            // API 호출 실패 시 기존 코드대로 localStorage에 직접 저장
+            // 현재의 코드 유지 (변경 없음)
             try {
                 // 로컬 저장용 객체 - API와 형식이 다름
                 const localComment = {
