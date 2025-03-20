@@ -74,7 +74,7 @@ async function fetchAPI(endpoint, options = {}) {
 const authAPI = {
     // 로그인
     login: (credentials) => {
-        return fetchAPI('/auth/login', {
+        return fetchAPI('/users/login', {
             method: 'POST',
             body: JSON.stringify(credentials),
             auth: false
