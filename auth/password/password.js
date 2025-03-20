@@ -84,7 +84,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const currentUser = JSON.parse(localStorage.getItem('currentUser'));
             const token = sessionStorage.getItem('token');
             
-            const response = await fetch(`${API_URL}/users/${currentUser.email}/password`, {
+            // API 경로 수정: /users/{email}/password -> /users/password
+            const response = await fetch(`${API_URL}/users/password`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -93,16 +94,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({ password: newPassword })
             });
             
+            console.log('비밀번호 변경 API 응답 상태:', response.status);
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
             
             // 서버에서 응답 데이터 받기
             const result = await response.json();
-            
-            // 로컬 사용자 정보 업데이트
-            currentUser.password = newPassword;
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            console.log('비밀번호 변경 API 응답:', result);
             
             return true;
         } catch (error) {
@@ -122,10 +122,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // localStorage 업데이트
                     localStorage.setItem('users', JSON.stringify(users));
-                    
-                    // currentUser 정보도 업데이트
-                    currentUser.password = newPassword;
-                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     
                     return true;
                 }
@@ -161,20 +157,26 @@ document.addEventListener('DOMContentLoaded', function() {
         updateSubmitButton();
     });
 
-    // 수정하기 버튼 클릭 이벤트
+    // 수정하기 버튼 클릭 이벤트 - 비밀번호 변경 후 강제 로그아웃 적용
     submitBtn.addEventListener('click', async function() {
         if (isPasswordValid && isConfirmPasswordValid) {
             const success = await updateUserPassword(passwordInput.value);
             
             if (success) {
-                toast.textContent = "비밀번호가 성공적으로 변경되었습니다";
+                toast.textContent = "비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해주세요.";
                 toast.classList.add('show');
                 
-                // 2초 후 토스트 메시지 숨기기 및 페이지 이동
+                // 로그아웃 처리
+                localStorage.removeItem('currentUser');
+                sessionStorage.removeItem('isLoggedIn');
+                sessionStorage.removeItem('userEmail');
+                sessionStorage.removeItem('token');
+                
+                // 3초 후 로그인 페이지로 이동
                 setTimeout(() => {
                     toast.classList.remove('show');
-                    window.location.href = '../../post/index/index.html';
-                }, 2000);
+                    window.location.href = '../../auth/login/login.html';
+                }, 3000);
             } else {
                 toast.textContent = "비밀번호 변경에 실패했습니다";
                 toast.classList.add('show');
