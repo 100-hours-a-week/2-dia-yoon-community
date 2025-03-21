@@ -353,6 +353,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const nickname = nicknameInput.value;
         const profileImage = profilePreview.src;
 
+        console.log('프론트엔드에서 전송 직전 비밀번호:', password);
+
         // 최종 유효성 검사
         const emailValidation = await isValidEmail(email);
         const passwordValidation = isValidPassword(password);
