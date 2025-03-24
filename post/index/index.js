@@ -1,4 +1,59 @@
 document.addEventListener('DOMContentLoaded', function() {
+        // 사용자 정보 표시 - 개선된 버전
+        function displayUserInfo() {
+            console.log('사용자 정보 표시 시도');
+            
+            try {
+                // localStorage에서 사용자 정보 가져오기
+                const userDataStr = localStorage.getItem('currentUser');
+                console.log('localStorage currentUser:', userDataStr);
+                
+                const userData = JSON.parse(userDataStr || '{}');
+                console.log('파싱된 사용자 데이터:', userData);
+                
+                // 프로필 이미지 요소 찾기
+                const profileImg = document.getElementById('profileDropdown');
+                
+                if (!profileImg) {
+                    console.error('프로필 이미지 요소를 찾을 수 없음');
+                    return;
+                }
+                
+                // 게시글 처리와 동일한 방식으로 이미지 경로 설정
+                let authorImg;
+                if (userData.profileImage) {
+                    const imageSource = userData.profileImage;
+                    // Base64 이미지 데이터인 경우 직접 사용
+                    if (imageSource.startsWith('data:image/')) {
+                        authorImg = imageSource;
+                    }
+                    // 절대 경로인 경우 그대로 사용
+                    else if (imageSource.startsWith('/')) {
+                        authorImg = imageSource;
+                    }
+                    // 상대 경로나 파일명인 경우
+                    else {
+                        authorImg = `../../images/${imageSource.split('/').pop()}`;
+                    }
+                } else {
+                    // 이미지 정보가 없으면 기본 이미지
+                    authorImg = '../../images/cat2/jpg';
+                }
+                
+                // 이미지 소스 설정
+                profileImg.src = authorImg;
+                
+                // 이미지 로딩 실패 시 기본 이미지로 대체
+                profileImg.onerror = () => {
+                    console.error('이미지 로드 실패:', profileImg.src);
+                    profileImg.src = '../../images/cat1.jpg';
+                };
+            } catch (error) {
+                console.error('프로필 표시 중 오류:', error);
+                document.getElementById('profileDropdown').src = '../../images/default-profile.jpg';
+            }
+        }
+    
     // 로그인 체크
     function checkLogin() {
         const isLoggedIn = sessionStorage.getItem('isLoggedIn');
@@ -120,25 +175,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            console.log('현재 이미지 소스:', profileImg.src);
-            
-            // 사용자 정보에 프로필 이미지가 있는 경우
-            if (userData && userData.profileImage) {
-                console.log('사용자 프로필 이미지 설정:', userData.profileImage);
-                profileImg.src = userData.profileImage;
+            // 게시글 처리와 동일한 방식으로 이미지 경로 설정
+            let authorImg;
+            if (userData.profileImage) {
+                const imageSource = userData.profileImage;
+                // Base64 이미지 데이터인 경우 직접 사용
+                if (imageSource.startsWith('data:image/')) {
+                    authorImg = imageSource;
+                }
+                // 절대 경로인 경우 그대로 사용
+                else if (imageSource.startsWith('/')) {
+                    authorImg = imageSource;
+                }
+                // 상대 경로나 파일명인 경우
+                else {
+                    authorImg = `../../images/${imageSource.split('/').pop()}`;
+                }
             } else {
-                // 기본 이미지 사용 - 절대 경로 사용
-                console.log('기본 이미지 사용');
-                profileImg.src = '/images/default-profile.png';
+                // 이미지 정보가 없으면 기본 이미지
+                authorImg = '../../images/cat2/jpg';
             }
+            
+            // 이미지 소스 설정
+            profileImg.src = authorImg;
+            
+            // 이미지 로딩 실패 시 기본 이미지로 대체
+            profileImg.onerror = () => {
+                console.error('이미지 로드 실패:', profileImg.src);
+                profileImg.src = '../../images/cat1.jpg';
+            };
         } catch (error) {
             console.error('프로필 표시 중 오류:', error);
-            
-            // 오류 발생 시 기본 이미지로 설정
-            const profileImg = document.getElementById('profileDropdown');
-            if (profileImg) {
-                profileImg.src = '/images/default-profile.png';
-            }
+            document.getElementById('profileDropdown').src = '../../images/default-profile.jpg';
         }
     }
 
@@ -291,7 +359,28 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 작성자 관련 필드 유연하게 처리
             const authorName = post.authorNickname || post.author || '익명';
-            const authorImg = post.authorProfileImage || post.authorImage || '/images/default-profile.png';
+            
+            // 작성자 프로필 이미지 경로 처리
+            let authorImg;
+            if (post.authorProfileImage || post.authorImage) {
+                const imageSource = post.authorProfileImage || post.authorImage;
+                
+                // Base64 이미지 데이터인 경우 직접 사용
+                if (imageSource.startsWith('data:image/')) {
+                    authorImg = imageSource;
+                } 
+                // 절대 경로인 경우 그대로 사용
+                else if (imageSource.startsWith('/')) {
+                    authorImg = imageSource;
+                } 
+                // 상대 경로나 파일명인 경우
+                else {
+                    authorImg = `../images/${imageSource.split('/').pop()}`;
+                }
+            } else {
+                // 이미지 정보가 없으면 기본 이미지
+                authorImg = '../../images/default-profile.jpg';
+            }
             
             // 좋아요 수 로컬 스토리지 정보로 업데이트
             let likeCount = post.likes || 0;
@@ -329,7 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span class="date">${new Date(post.createdAt).toLocaleString()}</span>
                 </div>
                 <div class="post-author">
-                    <img src="${authorImg}" alt="프로필" class="author-image">
+                    <img src="${authorImg}" alt="프로필" class="author-image" onerror="this.src='../images/default-profile.png'">
                     <span>${authorName}</span>
                 </div>
             `;
