@@ -15,6 +15,107 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기 로그인 체크
     if (!checkLogin()) return;
 
+    // 개선된 권한 체크 함수: 다양한 ID/이름 필드를 지원
+    function checkAuthorPermission(post, user) {
+        if (!post || !user) {
+            console.error('게시글 또는 사용자 정보가 없습니다.');
+            return false;
+        }
+
+        console.log('권한 체크 - 게시글 정보:', post);
+        console.log('권한 체크 - 사용자 정보:', user);
+        
+        // 게시글 작성자 ID (여러 가능한 필드 확인)
+        const postUserId = post.userId || post.author_id || post.authorId || post.user_id;
+        
+        // 게시글 작성자 이름 (여러 가능한 필드 확인)
+        const postAuthorName = post.author || post.authorName || post.author_name || post.nickname || post.username;
+        
+        // 현재 사용자 ID (여러 가능한 필드 확인)
+        const currentUserId = user.id || user.userId || user.user_id;
+        
+        // 현재 사용자 이름 (여러 가능한 필드 확인)
+        const currentUserName = user.nickname || user.username || user.name || user.author || user.authorName;
+        
+        console.log('권한 체크 - 게시글 작성자 ID:', postUserId, typeof postUserId);
+        console.log('권한 체크 - 게시글 작성자 이름:', postAuthorName);
+        console.log('권한 체크 - 현재 사용자 ID:', currentUserId, typeof currentUserId);
+        console.log('권한 체크 - 현재 사용자 이름:', currentUserName);
+        
+        // ID 일치 여부 확인 (타입 변환하여 비교)
+        const idMatches = postUserId && currentUserId && 
+                        (postUserId.toString() === currentUserId.toString());
+        
+        // 이름 일치 여부 확인
+        const nameMatches = postAuthorName && currentUserName && 
+                        (postAuthorName === currentUserName);
+        
+        console.log('권한 체크 - ID 일치 여부:', idMatches);
+        console.log('권한 체크 - 이름 일치 여부:', nameMatches);
+        
+        // ID나 이름 중 하나라도 일치하면 권한 있음
+        const isAuthor = idMatches || nameMatches;
+        
+        console.log('권한 체크 결과:', isAuthor ? '작성자 맞음' : '작성자 아님');
+        return isAuthor;
+    }
+
+    // 사용자 정보 표시 함수
+    function displayUserInfo() {
+        console.log('사용자 정보 표시 시도');
+        try {
+            // localStorage에서 사용자 정보 가져오기
+            const userDataStr = localStorage.getItem('currentUser');
+            console.log('localStorage currentUser:', userDataStr);
+            const userData = JSON.parse(userDataStr || '{}');
+            console.log('파싱된 사용자 데이터:', userData);
+            
+            // 프로필 이미지 요소 찾기
+            const profileImg = document.getElementById('profileDropdown');
+            if (!profileImg) {
+                console.error('프로필 이미지 요소를 찾을 수 없음');
+                return;
+            }
+            
+            // 게시글 처리와 동일한 방식으로 이미지 경로 설정
+            let authorImg;
+            if (userData.profileImage) {
+                const imageSource = userData.profileImage;
+                // Base64 이미지 데이터인 경우 직접 사용
+                if (imageSource.startsWith('data:image/')) {
+                    authorImg = imageSource;
+                }
+                // 긴 Base64 문자열인 경우(data:image/ 없이 시작하는 경우)
+                else if (imageSource.length > 100 && (imageSource.startsWith('/9j/') || imageSource.startsWith('/4AA'))) {
+                    authorImg = `data:image/jpeg;base64,${imageSource}`;
+                }
+                // 절대 경로인 경우 그대로 사용
+                else if (imageSource.startsWith('/')) {
+                    authorImg = imageSource;
+                }
+                // 상대 경로나 파일명인 경우
+                else {
+                    authorImg = `../../images/${imageSource.split('/').pop()}`;
+                }
+            } else {
+                // 이미지 정보가 없으면 기본 이미지
+                authorImg = '../../images/cat2.jpg';
+            }
+            
+            // 이미지 소스 설정
+            profileImg.src = authorImg;
+            
+            // 이미지 로딩 실패 시 기본 이미지로 대체
+            profileImg.onerror = () => {
+                console.error('이미지 로드 실패:', profileImg.src);
+                profileImg.src = '../../images/cat1.jpg';
+            };
+        } catch (error) {
+            console.error('프로필 표시 중 오류:', error);
+            document.getElementById('profileDropdown').src = '../../images/default-profile.jpg';
+        }
+    }
+
     // DOM 요소 선택
     const modifyForm = document.getElementById('modifyForm');
     const titleInput = document.getElementById('title');
@@ -38,92 +139,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let originalPost = null;
     let hasImageChanged = false;
     let newImageData = null;
-
-    // 이미지 압축 함수
-    function compressImage(imgFile) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(imgFile);
-            reader.onload = function(event) {
-                const img = new Image();
-                img.src = event.target.result;
-                img.onload = function() {
-                    // 크기 조정
-                    const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 300;
-                    const MAX_HEIGHT = 300;
-                    let width = img.width;
-                    let height = img.height;
-                    
-                    // 비율 유지하면서 크기 조정
-                    if (width > height) {
-                        if (width > MAX_WIDTH) {
-                            height *= MAX_WIDTH / width;
-                            width = MAX_WIDTH;
-                        }
-                    } else {
-                        if (height > MAX_HEIGHT) {
-                            width *= MAX_HEIGHT / height;
-                            height = MAX_HEIGHT;
-                        }
-                    }
-                    
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // 낮은 품질로 압축 (0.1 = 10% 품질)
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.1);
-                    
-                    // 이미지 크기 확인 (대략적인 계산)
-                    const base64Length = compressedDataUrl.length - 'data:image/jpeg;base64,'.length;
-                    const sizeInBytes = base64Length * 0.75;
-                    const sizeInKB = sizeInBytes / 1024;
-                    
-                    console.log(`압축된 이미지 크기: 약 ${sizeInKB.toFixed(2)}KB`);
-                    
-                    // 만약 크기가 100KB보다 크면 추가 압축 수행
-                    if (sizeInKB > 100) {
-                        console.log('이미지가 여전히 너무 큽니다. 추가 압축 수행...');
-                        // 더 작은 크기로 다시 압축
-                        const smallerCanvas = document.createElement('canvas');
-                        const SMALLER_MAX = 200;
-                        let smallerWidth = width;
-                        let smallerHeight = height;
-                        
-                        if (smallerWidth > smallerHeight) {
-                            if (smallerWidth > SMALLER_MAX) {
-                                smallerHeight *= SMALLER_MAX / smallerWidth;
-                                smallerWidth = SMALLER_MAX;
-                            }
-                        } else {
-                            if (smallerHeight > SMALLER_MAX) {
-                                smallerWidth *= SMALLER_MAX / smallerHeight;
-                                smallerHeight = SMALLER_MAX;
-                            }
-                        }
-                        
-                        smallerCanvas.width = smallerWidth;
-                        smallerCanvas.height = smallerHeight;
-                        const smallerCtx = smallerCanvas.getContext('2d');
-                        smallerCtx.drawImage(img, 0, 0, smallerWidth, smallerHeight);
-                        
-                        // 더 낮은 품질로 압축 (0.05 = 5% 품질)
-                        resolve(smallerCanvas.toDataURL('image/jpeg', 0.05));
-                    } else {
-                        resolve(compressedDataUrl);
-                    }
-                };
-                img.onerror = function() {
-                    reject(new Error('이미지 로드 실패'));
-                };
-            };
-            reader.onerror = function() {
-                reject(new Error('파일 읽기 실패'));
-            };
-        });
-    }
 
     // 기존 게시글 데이터 불러오기
     async function fetchPostData() {
@@ -172,15 +187,10 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('처리된 게시글 데이터:', post);
         
         // 권한 체크: 현재 사용자가 작성자인지 확인
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        // detail.js와 유사하게 다양한 ID 필드 검사
-        const isAuthor = currentUser && 
-                       (post.userId === currentUser.id || 
-                        post.authorId === currentUser.id || 
-                        post.author === currentUser.nickname);
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         
-        if (!isAuthor) {
-            alert('이 게시글을 수정할 권한이 없습니다.');
+        if (!checkAuthorPermission(post, currentUser)) {
+            alert('이 게시글을 수정할 권한이 없습니다. 자신이 작성한 게시글만 수정할 수 있습니다.');
             window.location.href = `../detail/detail.html?id=${postId}`;
             return;
         }
@@ -203,14 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // 권한 체크: 현재 사용자가 작성자인지 확인
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            const isAuthor = currentUser && 
-                          (post.userId === currentUser.id || 
-                           post.authorId === currentUser.id || 
-                           post.author === currentUser.nickname);
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
             
-            if (!isAuthor) {
-                alert('이 게시글을 수정할 권한이 없습니다.');
+            if (!checkAuthorPermission(post, currentUser)) {
+                alert('이 게시글을 수정할 권한이 없습니다. 자신이 작성한 게시글만 수정할 수 있습니다.');
                 window.location.href = `../detail/detail.html?id=${postId}`;
                 return;
             }
@@ -307,118 +313,216 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 게시글 업데이트
-    async function updatePost(updatedPost) {
-    try {
-        console.log('게시글 업데이트 요청 - ID:', postId);
-        
-        // 백엔드 API 형식에 맞게 요청 데이터 구성
-        const requestBody = {
-            title: updatedPost.title,
-            content: updatedPost.content
-        };
-        
-        // 이미지 데이터 처리 - postImage 필드 사용
-        if (hasImageChanged && newImageData) {
-            requestBody.postImage = newImageData;
-            console.log('새 이미지 데이터 전송 - 크기:', Math.round(newImageData.length * 0.75 / 1024) + 'KB');
-        } else if (updatedPost.postImage) {
-            requestBody.postImage = updatedPost.postImage;
-            console.log('기존 postImage 필드 유지');
-        } else if (updatedPost.image) {
-            requestBody.postImage = updatedPost.image;
-            console.log('기존 image 필드를 postImage로 변환');
-        }
-        
-        console.log('업데이트 요청 데이터:', {
-            title: requestBody.title,
-            content: requestBody.content.substring(0, 30) + '...',
-            hasImage: !!requestBody.postImage
-        });
-        
-        const response = await fetch(`${API_URL}/posts/${postId}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        console.log('업데이트 API 응답 상태:', response.status);
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('업데이트 실패 응답:', errorText);
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('업데이트 API 응답:', result);
-        
-        alert('게시글이 수정되었습니다.');
-        window.location.href = `../detail/detail.html?id=${postId}`;
-    } catch (error) {
-        console.error('게시글 업데이트 중 오류:', error);
-        
-        // API 호출 실패 시 localStorage에서 직접 업데이트
+    // 게시글 삭제 함수
+    async function deletePost() {
         try {
-            console.log('API 호출 실패, localStorage 업데이트 시도');
-            const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-            const postIndex = posts.findIndex(p => p.id == postId);
-
-            if (postIndex === -1) {
-                alert('게시글을 찾을 수 없습니다.');
+            // 현재 사용자 정보 가져오기
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            if (!currentUser || Object.keys(currentUser).length === 0) {
+                alert('로그인이 필요한 서비스입니다.');
                 return;
             }
-
-            // 게시글 데이터 업데이트
-            const localUpdatedPost = {...updatedPost};
             
-            // 이미지 필드 통일 - image와 postImage 모두 설정
-            if (hasImageChanged && newImageData) {
-                localUpdatedPost.image = newImageData;
-                localUpdatedPost.postImage = newImageData;
+            // 권한 확인: 해당 게시글의 작성자인지 확인
+            if (!originalPost) {
+                alert('게시글 정보가 없습니다.');
+                return;
             }
             
-            posts[postIndex] = localUpdatedPost;
+            if (!checkAuthorPermission(originalPost, currentUser)) {
+                alert('이 게시글을 삭제할 권한이 없습니다. 자신이 작성한 게시글만 삭제할 수 있습니다.');
+                return;
+            }
             
-            // localStorage 업데이트
-            localStorage.setItem('posts', JSON.stringify(posts));
+            // 삭제 확인
+            if (!confirm('정말로 이 게시글을 삭제하시겠습니까?')) {
+                return;
+            }
             
-            alert('게시글이 수정되었습니다. (로컬 저장소에 저장됨)');
-            window.location.href = `../detail/detail.html?id=${postId}`;
-        } catch (localError) {
-            console.error('localStorage 업데이트 중 오류:', localError);
+            console.log('게시글 삭제 요청 - ID:', postId);
             
-            // 오류 발생 시 이미지 제거 후 다시 시도
-            if (hasImageChanged && newImageData) {
-                try {
-                    console.log('이미지 없이 다시 시도');
-                    const posts = JSON.parse(localStorage.getItem('posts') || '[]');
-                    const postIndex = posts.findIndex(p => p.id == postId);
-                    
-                    if (postIndex !== -1) {
-                        const noImagePost = {...updatedPost};
-                        noImagePost.image = null;
-                        noImagePost.postImage = null;
-                        
-                        posts[postIndex] = noImagePost;
-                        localStorage.setItem('posts', JSON.stringify(posts));
-                        
-                        alert('이미지를 제외한 게시글이 수정되었습니다. (이미지 크기 제한 초과)');
-                        window.location.href = `../detail/detail.html?id=${postId}`;
-                    }
-                } catch (finalError) {
-                    console.error('최종 저장 시도 실패:', finalError);
-                    alert('게시글 수정에 실패했습니다. 데이터를 정리한 후 다시 시도해주세요.');
+            const token = sessionStorage.getItem('token');
+            
+            // API 호출
+            const response = await fetch(`${API_URL}/posts/${postId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
-            } else {
-                alert('게시글 수정에 실패했습니다.');
+            });
+            
+            console.log('삭제 API 응답 상태:', response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            console.log('게시글 삭제 성공');
+            
+            // localStorage의 게시글 데이터도 업데이트
+            try {
+                const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                const postIndex = posts.findIndex(p => p.id == postId);
+                
+                if (postIndex !== -1) {
+                    posts.splice(postIndex, 1);
+                    localStorage.setItem('posts', JSON.stringify(posts));
+                }
+            } catch (localError) {
+                console.error('로컬 데이터 삭제 중 오류:', localError);
+            }
+            
+            alert('게시글이 삭제되었습니다.');
+            window.location.href = '../index/index.html';
+        } catch (error) {
+            console.error('게시글 삭제 중 오류:', error);
+            
+            // API 호출 실패 시 localStorage에서만 삭제
+            try {
+                const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                const postIndex = posts.findIndex(p => p.id == postId);
+                
+                if (postIndex === -1) {
+                    alert('게시글을 찾을 수 없습니다.');
+                    return;
+                }
+                
+                // 삭제 권한 확인
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                const post = posts[postIndex];
+                
+                if (!checkAuthorPermission(post, currentUser)) {
+                    alert('이 게시글을 삭제할 권한이 없습니다. 자신이 작성한 게시글만 삭제할 수 있습니다.');
+                    return;
+                }
+                
+                // 게시글 삭제
+                posts.splice(postIndex, 1);
+                localStorage.setItem('posts', JSON.stringify(posts));
+                
+                alert('게시글이 삭제되었습니다. (로컬 저장소에서만 삭제됨)');
+                window.location.href = '../index/index.html';
+            } catch (localError) {
+                console.error('로컬 데이터 삭제 중 오류:', localError);
+                alert('게시글 삭제에 실패했습니다: ' + error.message);
             }
         }
     }
+
+    // 게시글 업데이트 함수
+    async function updatePost(updatedPost) {
+        try {
+            console.log('게시글 업데이트 요청 - ID:', postId);
+            
+            // 백엔드 API 형식에 맞게 요청 데이터 구성
+            const requestBody = {
+                title: updatedPost.title,
+                content: updatedPost.content
+            };
+            
+            // 이미지 데이터 처리 - postImage 필드 사용
+            if (hasImageChanged && newImageData) {
+                requestBody.postImage = newImageData;
+                console.log('새 이미지 데이터 전송 - 크기:', Math.round(newImageData.length * 0.75 / 1024) + 'KB');
+            } else if (updatedPost.postImage) {
+                requestBody.postImage = updatedPost.postImage;
+                console.log('기존 postImage 필드 유지');
+            } else if (updatedPost.image) {
+                requestBody.postImage = updatedPost.image;
+                console.log('기존 image 필드를 postImage로 변환');
+            }
+            
+            console.log('업데이트 요청 데이터:', {
+                title: requestBody.title,
+                content: requestBody.content.substring(0, 30) + '...',
+                hasImage: !!requestBody.postImage
+            });
+            
+            const response = await fetch(`${API_URL}/posts/${postId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+            
+            console.log('업데이트 API 응답 상태:', response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('업데이트 실패 응답:', errorText);
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('업데이트 API 응답:', result);
+            
+            alert('게시글이 수정되었습니다.');
+            window.location.href = `../detail/detail.html?id=${postId}`;
+        } catch (error) {
+            console.error('게시글 업데이트 중 오류:', error);
+            
+            // API 호출 실패 시 localStorage에서 직접 업데이트
+            try {
+                console.log('API 호출 실패, localStorage 업데이트 시도');
+                const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                const postIndex = posts.findIndex(p => p.id == postId);
+
+                if (postIndex === -1) {
+                    alert('게시글을 찾을 수 없습니다.');
+                    return;
+                }
+
+                // 게시글 데이터 업데이트
+                const localUpdatedPost = {...updatedPost};
+                
+                // 이미지 필드 통일 - image와 postImage 모두 설정
+                if (hasImageChanged && newImageData) {
+                    localUpdatedPost.image = newImageData;
+                    localUpdatedPost.postImage = newImageData;
+                }
+                
+                posts[postIndex] = localUpdatedPost;
+                
+                // localStorage 업데이트
+                localStorage.setItem('posts', JSON.stringify(posts));
+                
+                alert('게시글이 수정되었습니다. (로컬 저장소에 저장됨)');
+                window.location.href = `../detail/detail.html?id=${postId}`;
+            } catch (localError) {
+                console.error('localStorage 업데이트 중 오류:', localError);
+                
+                // 오류 발생 시 이미지 제거 후 다시 시도
+                if (hasImageChanged && newImageData) {
+                    try {
+                        console.log('이미지 없이 다시 시도');
+                        const posts = JSON.parse(localStorage.getItem('posts') || '[]');
+                        const postIndex = posts.findIndex(p => p.id == postId);
+                        
+                        if (postIndex !== -1) {
+                            const noImagePost = {...updatedPost};
+                            noImagePost.image = null;
+                            noImagePost.postImage = null;
+                            
+                            posts[postIndex] = noImagePost;
+                            localStorage.setItem('posts', JSON.stringify(posts));
+                            
+                            alert('이미지를 제외한 게시글이 수정되었습니다. (이미지 크기 제한 초과)');
+                            window.location.href = `../detail/detail.html?id=${postId}`;
+                        }
+                    } catch (finalError) {
+                        console.error('최종 저장 시도 실패:', finalError);
+                        alert('게시글 수정에 실패했습니다. 데이터를 정리한 후 다시 시도해주세요.');
+                    }
+                } else {
+                    alert('게시글 수정에 실패했습니다.');
+                }
+            }
+        }
     }
+    
 
     // 폼 제출 처리
     if (modifyForm) {
@@ -507,6 +611,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기화
     if (postId) {
         fetchPostData();
+        // 사용자 정보 표시 함수 호출
+        displayUserInfo();
     } else {
         alert('게시글 ID가 없습니다.');
         window.location.href = '../index/index.html';
