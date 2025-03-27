@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             console.log('API 로그인 시도:', email);
             
-            const response = await fetch(`${API_URL}/users/login`, {
+            const response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
