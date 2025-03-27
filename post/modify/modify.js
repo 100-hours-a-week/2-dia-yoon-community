@@ -1,19 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // 로그인 체크
-    function checkLogin() {
-        const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-        const currentUser = localStorage.getItem('currentUser');
-        
-        if (!isLoggedIn || !currentUser) {
-            alert('로그인이 필요한 서비스입니다.');
-            window.location.href = '../../auth/login/login.html';
-            return false;
-        }
-        return true;
-    }
 
     // 초기 로그인 체크
-    if (!checkLogin()) return;
+    if (!window.headerUtils.checkLogin()) return;
 
     // 개선된 권한 체크 함수: 다양한 ID/이름 필드를 지원
     function checkAuthorPermission(post, user) {
@@ -58,62 +46,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('권한 체크 결과:', isAuthor ? '작성자 맞음' : '작성자 아님');
         return isAuthor;
-    }
-
-    // 사용자 정보 표시 함수
-    function displayUserInfo() {
-        console.log('사용자 정보 표시 시도');
-        try {
-            // localStorage에서 사용자 정보 가져오기
-            const userDataStr = localStorage.getItem('currentUser');
-            console.log('localStorage currentUser:', userDataStr);
-            const userData = JSON.parse(userDataStr || '{}');
-            console.log('파싱된 사용자 데이터:', userData);
-            
-            // 프로필 이미지 요소 찾기
-            const profileImg = document.getElementById('profileDropdown');
-            if (!profileImg) {
-                console.error('프로필 이미지 요소를 찾을 수 없음');
-                return;
-            }
-            
-            // 게시글 처리와 동일한 방식으로 이미지 경로 설정
-            let authorImg;
-            if (userData.profileImage) {
-                const imageSource = userData.profileImage;
-                // Base64 이미지 데이터인 경우 직접 사용
-                if (imageSource.startsWith('data:image/')) {
-                    authorImg = imageSource;
-                }
-                // 긴 Base64 문자열인 경우(data:image/ 없이 시작하는 경우)
-                else if (imageSource.length > 100 && (imageSource.startsWith('/9j/') || imageSource.startsWith('/4AA'))) {
-                    authorImg = `data:image/jpeg;base64,${imageSource}`;
-                }
-                // 절대 경로인 경우 그대로 사용
-                else if (imageSource.startsWith('/')) {
-                    authorImg = imageSource;
-                }
-                // 상대 경로나 파일명인 경우
-                else {
-                    authorImg = `../../images/${imageSource.split('/').pop()}`;
-                }
-            } else {
-                // 이미지 정보가 없으면 기본 이미지
-                authorImg = '../../images/cat2.jpg';
-            }
-            
-            // 이미지 소스 설정
-            profileImg.src = authorImg;
-            
-            // 이미지 로딩 실패 시 기본 이미지로 대체
-            profileImg.onerror = () => {
-                console.error('이미지 로드 실패:', profileImg.src);
-                profileImg.src = '../../images/cat1.jpg';
-            };
-        } catch (error) {
-            console.error('프로필 표시 중 오류:', error);
-            document.getElementById('profileDropdown').src = '../../images/default-profile.jpg';
-        }
     }
 
     // DOM 요소 선택
@@ -573,46 +505,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 드롭다운 메뉴 관련 이벤트
-    if (profileDropdown) {
-        profileDropdown.addEventListener('click', function(e) {
-            menuList.classList.toggle('show');
-            e.stopPropagation();
-        });
-
-        document.addEventListener('click', function() {
-            menuList.classList.remove('show');
-        });
-    }
-
-    // 메뉴 항목 클릭 이벤트
-    if (menuList) {
-        menuList.addEventListener('click', function(e) {
-            const item = e.target;
-            
-            switch(item.textContent) {
-                case '회원정보수정':
-                    window.location.href = '../../auth/profile/profile.html';
-                    break;
-                case '비밀번호수정':
-                    window.location.href = '../../auth/password/password.html';
-                    break;
-                case '로그아웃':
-                    localStorage.removeItem('currentUser');
-                    sessionStorage.removeItem('isLoggedIn');
-                    sessionStorage.removeItem('userEmail');
-                    sessionStorage.removeItem('token');
-                    window.location.href = '../../auth/login/login.html';
-                    break;
-            }
-        });
-    }
-
     // 초기화
     if (postId) {
         fetchPostData();
         // 사용자 정보 표시 함수 호출
-        displayUserInfo();
+        window.headerUtils.displayUserInfo();
     } else {
         alert('게시글 ID가 없습니다.');
         window.location.href = '../index/index.html';

@@ -2,22 +2,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 전역 변수 선언
     let isLiked = false;
 
-    // 로그인 체크
-    function checkLogin() {
-        const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-        const currentUser = localStorage.getItem('currentUser');
-        
-        if (!isLoggedIn || !currentUser) {
-            alert('로그인이 필요한 서비스입니다.');
-            window.location.href = '../../auth/login/login.html';
-            return false;
-        }
-        return true;
-    }
-
     // 초기 로그인 체크
-    if (!checkLogin()) return;
-
+    if (!window.headerUtils.checkLogin()) return;
+    
     // URL에서 게시글 ID 가져오기
     const urlParams = new URLSearchParams(window.location.search);
     const postId = urlParams.get('id');
@@ -53,21 +40,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // 현재 로그인한 사용자와 게시글 데이터
     let currentUser = JSON.parse(localStorage.getItem('currentUser'));
     let postData = null;
-
-    // 사용자 정보 표시
-    function displayUserInfo() {
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        const profileImage = document.querySelector('.profile-image') || document.getElementById('profileDropdown');
-        
-        if (currentUser && currentUser.profileImage && profileImage) {
-            console.log('프로필 이미지 설정:', currentUser.profileImage);
-            profileImage.src = currentUser.profileImage;
-        } else {
-            console.log('기본 프로필 이미지 사용');
-            // 기본 프로필 이미지 경로 설정
-            if(profileImage) profileImage.src = '../images/default-profile.png';
-        }
-    }
 
     // 게시글 좋아요 정보를 로컬 스토리지에서 가져오기
     function getPostLikeInfo(postId) {
@@ -1086,38 +1058,6 @@ function updateLikeStatusAndUI(newLikedState) {
     likeBox.addEventListener('click', toggleLike);
     likeBox.style.cursor = 'pointer';
 
-    // 드롭다운 메뉴 토글
-    profileDropdown.addEventListener('click', function(e) {
-        menuList.classList.toggle('show');
-        e.stopPropagation();
-    });
-
-    // 다른 곳 클릭시 드롭다운 닫기
-    document.addEventListener('click', function() {
-        menuList.classList.remove('show');
-    });
-
-    // 메뉴 항목 클릭 이벤트
-    menuList.addEventListener('click', function(e) {
-        const item = e.target;
-        
-        switch(item.textContent) {
-            case '회원정보수정':
-                window.location.href = '../../auth/profile/profile.html';
-                break;
-            case '비밀번호수정':
-                window.location.href = '../../auth/password/password.html';
-                break;
-            case '로그아웃':
-                localStorage.removeItem('currentUser');
-                sessionStorage.removeItem('isLoggedIn');
-                sessionStorage.removeItem('userEmail');
-                sessionStorage.removeItem('token');
-                window.location.href = '../../auth/login/login.html';
-                break;
-        }
-    });
-
     // 댓글 폼 제출 이벤트
     if (commentForm) {
         commentForm.addEventListener('submit', function(e) {
@@ -1155,7 +1095,7 @@ function updateLikeStatusAndUI(newLikedState) {
     });
 
     // 초기화
-    displayUserInfo();
+    window.headerUtils.displayUserInfo();
     checkLikeStatus(); // 좋아요 상태 확인
     fetchPostData();
 });

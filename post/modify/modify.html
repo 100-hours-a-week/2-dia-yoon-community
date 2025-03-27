@@ -5,52 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>게시글 수정</title>
     <link rel="stylesheet" href="modify.css">
+    <link rel="stylesheet" href = "../header/header.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-content">
-                <button class="back-btn">←</button>
-                <div class="header-title">아무 말 대잔치</div>
-                <div class="profile-container">
-                    <img src="../images/default-profile.png" alt="프로필" class="profile-image" id="profileDropdown">
-                    <ul class="menu-list" id="menuList">
-                        <li>회원정보수정</li>
-                        <li>비밀번호수정</li>
-                        <li>로그아웃</li>
-                    </ul>
+    <header>        </header>
+        
+    <main class="main-content">
+       <form id="modifyForm">
+            <div class="input-group">
+                <input type="text" id="title" name="title" placeholder="제목" 
+                       maxlength="26" required>
+                <div class="title-counter">0/26</div>
+            </div>
+            
+            <div class="input-group">
+                <textarea id="content" name="content" required placeholder="본문을 작성해주세요. "></textarea>
+            </div>
+                
+            <div class="image-section">
+                <div class="file-upload-box">
+                    <input type="file" id="image" name="image" accept="image/*">
+                    <div class="upload-text">파일 선택</div>                        <div class="selected-file"></div>
+                </div>
+               <div id="currentImage" class="current-image">
+                    <!-- 기존 이미지가 있다면 여기에 표시 -->
                 </div>
             </div>
-        </header>
-        
-        <main class="main-content">
-            <form id="modifyForm">
-                <div class="input-group">
-                    <input type="text" id="title" name="title" placeholder="제목" 
-                           maxlength="26" required>
-                    <div class="title-counter">0/26</div>
-                </div>
-                
-                <div class="input-group">
-                    <textarea id="content" name="content" required 
-                              placeholder="무언가 하고싶은 이야기가 있다고요? 이곳에, 이 시점에, 전하고 싶은 글이 있다고요? 지체하지 마시고 그냥 써보세요. 뭘로 써도 모든 것이 우리를 좋아해 늘듯이 된답니다. 자신은 우리의 상위 목표일지도 모릅니다."></textarea>
-                </div>
-                
-                <div class="image-section">
-                    <div class="file-upload-box">
-                        <input type="file" id="image" name="image" accept="image/*">
-                        <div class="upload-text">파일 선택</div>
-                        <div class="selected-file"></div>
-                    </div>
-                    <div id="currentImage" class="current-image">
-                        <!-- 기존 이미지가 있다면 여기에 표시 -->
-                    </div>
-                </div>
-                
-                <button type="submit" class="submit-btn">수정하기</button>
-            </form>
-        </main>
+
+            <button type="submit" class="submit-btn">수정하기</button>
+        </form>
+    </main>
     </div>
+    <script src="../header/header.js"></script>
     <script src="../../js/api.js"></script>
     <script src="modify.js"></script>
 </body>

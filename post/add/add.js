@@ -1,19 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // 로그인 체크
-    function checkLogin() {
-        const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-        const currentUser = localStorage.getItem('currentUser');
-        
-        if (!isLoggedIn || !currentUser) {
-            alert('로그인이 필요한 서비스입니다.');
-            window.location.href = '../../auth/login/login.html';
-            return false;
-        }
-        return true;
-    }
  
     // 초기 로그인 체크
-    if (!checkLogin()) return;
+    if (!window.headerUtils.checkLogin()) return;
  
     // DOM 요소
     const postForm = document.querySelector('.post-form');
@@ -24,21 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const profileDropdown = document.getElementById('profileDropdown');
     const menuList = document.getElementById('menuList');
  
-    // 현재 로그인한 사용자 정보 표시
-    function displayUserInfo() {
-        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-        const profileImage = document.querySelector('.profile-image') || document.getElementById('profileDropdown');
-        
-        if (currentUser && currentUser.profileImage && profileImage) {
-            console.log('프로필 이미지 설정:', currentUser.profileImage);
-            profileImage.src = currentUser.profileImage;
-        } else {
-            console.log('기본 프로필 이미지 사용');
-            // 기본 프로필 이미지 경로 설정
-            if(profileImage) profileImage.src = '../images/default-profile.png';
-        }
-    }
- 
     // 숨겨진 파일 업로드 input 요소 생성
     const realFileInput = document.createElement('input');
     realFileInput.type = 'file';
@@ -47,130 +20,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.appendChild(realFileInput);
  
     let uploadedImage = null;
- 
-    // 극단적인 이미지 압축 함수
-    // function compressImage(imgFile) {
-    //     return new Promise((resolve, reject) => {
-    //         const reader = new FileReader();
-    //         reader.readAsDataURL(imgFile);
-    //         reader.onload = function(event) {
-    //             const img = new Image();
-    //             img.src = event.target.result;
-    //             img.onload = function() {
-    //                 // 매우 작은 크기로 설정 (300x300 픽셀)
-    //                 const canvas = document.createElement('canvas');
-    //                 const MAX_WIDTH = 300;
-    //                 const MAX_HEIGHT = 300;
-    //                 let width = img.width;
-    //                 let height = img.height;
-                    
-    //                 // 비율 유지하면서 크기 조정
-    //                 if (width > height) {
-    //                     if (width > MAX_WIDTH) {
-    //                         height *= MAX_WIDTH / width;
-    //                         width = MAX_WIDTH;
-    //                     }
-    //                 } else {
-    //                     if (height > MAX_HEIGHT) {
-    //                         width *= MAX_HEIGHT / height;
-    //                         height = MAX_HEIGHT;
-    //                     }
-    //                 }
-                    
-    //                 canvas.width = width;
-    //                 canvas.height = height;
-    //                 const ctx = canvas.getContext('2d');
-    //                 ctx.drawImage(img, 0, 0, width, height);
-                    
-    //                 // 매우 낮은 품질로 압축 (0.1 = 10% 품질)
-    //                 const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.1);
-                    
-    //                 // 추가 검사: 결과가 data:image/jpeg;base64, 로 시작하는지 확인
-    //                 if (!compressedDataUrl.startsWith('data:image/jpeg;base64,')) {
-    //                     reject(new Error('이미지 형식 오류'));
-    //                     return;
-    //                 }
-                    
-    //                 // 이미지 크기 확인 (대략적인 계산)
-    //                 const base64Length = compressedDataUrl.length - 'data:image/jpeg;base64,'.length;
-    //                 const sizeInBytes = base64Length * 0.75; // base64는 원본 크기의 약 4/3
-    //                 const sizeInKB = sizeInBytes / 1024;
-                    
-    //                 console.log(`압축된 이미지 크기: 약 ${sizeInKB.toFixed(2)}KB`);
-                    
-    //                 // 만약 크기가 100KB보다 크면 추가 압축 수행
-    //                 if (sizeInKB > 100) {
-    //                     console.log('이미지가 여전히 너무 큽니다. 추가 압축 수행...');
-    //                     // 더 작은 크기로 다시 압축
-    //                     const smallerCanvas = document.createElement('canvas');
-    //                     const SMALLER_MAX = 200; // 더 작은 크기로 제한
-    //                     let smallerWidth = width;
-    //                     let smallerHeight = height;
-                        
-    //                     if (smallerWidth > smallerHeight) {
-    //                         if (smallerWidth > SMALLER_MAX) {
-    //                             smallerHeight *= SMALLER_MAX / smallerWidth;
-    //                             smallerWidth = SMALLER_MAX;
-    //                         }
-    //                     } else {
-    //                         if (smallerHeight > SMALLER_MAX) {
-    //                             smallerWidth *= SMALLER_MAX / smallerHeight;
-    //                             smallerHeight = SMALLER_MAX;
-    //                         }
-    //                     }
-                        
-    //                     smallerCanvas.width = smallerWidth;
-    //                     smallerCanvas.height = smallerHeight;
-    //                     const smallerCtx = smallerCanvas.getContext('2d');
-    //                     smallerCtx.drawImage(img, 0, 0, smallerWidth, smallerHeight);
-                        
-    //                     // 더 낮은 품질로 압축 (0.05 = 5% 품질)
-    //                     resolve(smallerCanvas.toDataURL('image/jpeg', 0.05));
-    //                 } else {
-    //                     resolve(compressedDataUrl);
-    //                 }
-    //             };
-    //             img.onerror = function() {
-    //                 reject(new Error('이미지 로드 실패'));
-    //             };
-    //         };
-    //         reader.onerror = function() {
-    //             reject(new Error('파일 읽기 실패'));
-    //         };
-    //     });
-    // }
-
-    // 드롭다운 메뉴 토글
-    profileDropdown.addEventListener('click', function(e) {
-        menuList.classList.toggle('show');
-        e.stopPropagation();
-    });
- 
-    // 다른 곳 클릭시 드롭다운 닫기
-    document.addEventListener('click', function() {
-        menuList.classList.remove('show');
-    });
- 
-    // 메뉴 항목 클릭 이벤트
-    menuList.addEventListener('click', function(e) {
-        const item = e.target;
-        
-        switch(item.textContent) {
-            case '회원정보수정':
-                window.location.href = '../../auth/profile/profile.html';
-                break;
-            case '비밀번호수정':
-                window.location.href = '../../auth/password/password.html';
-                break;
-            case '로그아웃':
-                localStorage.removeItem('currentUser');
-                sessionStorage.removeItem('isLoggedIn');
-                sessionStorage.removeItem('userEmail');
-                sessionStorage.removeItem('token');
-                window.location.href = '../../auth/login/login.html';
-                break;
-        }
-    });
  
     // 파일 선택 버튼 클릭 시 파일 업로드 트리거
     fileInput.addEventListener('click', function() {
@@ -372,5 +221,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
  
     // 초기화
-    displayUserInfo();
+    window.headerUtils.displayUserInfo();
 });
