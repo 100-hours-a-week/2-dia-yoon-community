@@ -1,19 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // 로그인 체크
-    function checkLogin() {
-        const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-        const currentUser = localStorage.getItem('currentUser');
-        
-        if (!isLoggedIn || !currentUser) {
-            alert('로그인이 필요한 서비스입니다.');
-            window.location.href = '../../auth/login/login.html';
-            return false;
-        }
-        return true;
-    }
 
     // 초기 로그인 체크
-    if (!checkLogin()) return;
+    if (!window.headerUtils.checkLogin()) return;
 
     // API URL (실제 환경에서는 실제 API 엔드포인트로 대체)
     const API_URL = 'http://localhost:8080/api';
@@ -185,38 +173,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     toast.classList.remove('show');
                 }, 2000);
             }
-        }
-    });
-
-    // 드롭다운 메뉴 토글
-    profileDropdown.addEventListener('click', function(e) {
-        menuList.classList.toggle('show');
-        e.stopPropagation();
-    });
-
-    // 다른 곳 클릭시 드롭다운 닫기
-    document.addEventListener('click', function() {
-        menuList.classList.remove('show');
-    });
-
-    // 메뉴 항목 클릭
-    menuList.addEventListener('click', function(e) {
-        const item = e.target;
-        
-        switch(item.textContent) {
-            case '회원정보수정':
-                window.location.href = '../profile/profile.html';
-                break;
-            case '비밀번호수정':
-                window.location.href = '../password/password.html';
-                break;
-            case '로그아웃':
-                localStorage.removeItem('currentUser');
-                sessionStorage.removeItem('isLoggedIn');
-                sessionStorage.removeItem('userEmail');
-                sessionStorage.removeItem('token');
-                window.location.href = '../login/login.html';
-                break;
         }
     });
 
