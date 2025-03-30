@@ -15,8 +15,56 @@ document.addEventListener('DOMContentLoaded', function() {
         return emailRegex.test(email);
     }
 
+    // 사용자 프로필 정보 가져오기 함수 (추가된 함수)
+    async function fetchUserProfile(token, basicUserInfo) {
+        try {
+            console.log('사용자 프로필 정보 요청 시작');
+            
+            // 사용자 ID 또는 이메일로 프로필 정보 요청
+            const response = await fetch(`${API_URL}/users/profile`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Cache-Control': 'no-cache'
+                },
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                console.warn('프로필 정보 요청 실패:', response.status);
+                return basicUserInfo; // 실패 시 기본 정보 반환
+            }
+            
+            const profileData = await response.json();
+            console.log('프로필 정보 응답:', profileData);
+            
+            // 응답 구조에 따른 데이터 추출
+            let userProfile = profileData;
+            if (profileData.data) {
+                userProfile = profileData.data;
+            }
+            
+            // 기본 사용자 정보와 프로필 정보 병합
+            const mergedUserInfo = {
+                ...basicUserInfo,
+                nickname: userProfile.nickname || basicUserInfo.nickname,
+                profileImage: userProfile.profileImage || basicUserInfo.profileImage,
+                // 다른 필요한 필드 추가
+            };
+            
+            console.log('병합된 사용자 정보:', mergedUserInfo);
+            return mergedUserInfo;
+            
+        } catch (error) {
+            console.error('프로필 정보 요청 중 오류:', error);
+            return basicUserInfo; // 오류 발생 시 기본 정보 반환
+        }
+    }
+
     // Fetch API를 사용한 로그인 검증 함수
     async function validateLogin(email, password) {
+        console.error("로그인 함수 시작");
+
         try {
             console.log('API 로그인 시도:', email);
             
@@ -28,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Pragma': 'no-cache',
                     'Expires': '0'
                 },
+                credentials: 'include', // 쿠키 포함 설정 추가
                 cache: 'no-store',
                 body: JSON.stringify({ email, password })
             });
@@ -35,9 +84,14 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('API 응답 상태:', response.status);
             
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('로그인 실패 응답:', errorText);
-                throw new Error(`로그인 실패: ${response.status}`);
+                if (response.status === 401) {
+                    console.error('인증 실패: 이메일 또는 비밀번호가 올바르지 않습니다.');
+                    throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
+                } else {
+                    const errorText = await response.text();
+                    console.error('로그인 실패 응답:', errorText);
+                    throw new Error(`로그인 실패: ${response.status}`);
+                }
             }
             
             const data = await response.json();
@@ -49,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // 응답 구조 분석
             if (data.data && data.data.token) {
-                // { success: true, message: '로그인 성공', data: { token: '...', ... } }
+                console.log("로그인 전체 응답 : ", data);
                 token = data.data.token;
                 userData = {
                     id: data.data.userId || data.data.id,
@@ -58,7 +112,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     profileImage: data.data.profileImage || null
                 };
             } else if (data.token) {
-                // { token: '...', userId: 1, ... }
                 token = data.token;
                 userData = {
                     id: data.userId || data.id,
@@ -66,6 +119,47 @@ document.addEventListener('DOMContentLoaded', function() {
                     nickname: data.nickname || email.split('@')[0],
                     profileImage: data.profileImage || null
                 };
+                console.log("로그인 시 추출된 데이터 : ", userData);
+            } else {
+                // 응답 구조가 예상과 다를 경우 데이터 구조 로깅
+                console.warn('예상치 못한 응답 구조:', data);
+                
+                // 다양한 응답 형식 지원을 위한 확장 코드
+                if (typeof data === 'object') {
+                    // 중첩된 객체에서 토큰 찾기
+                    const findTokenInObject = (obj, depth = 0) => {
+                        if (depth > 3) return null; // 재귀 깊이 제한
+                        
+                        if (obj.token) return obj.token;
+                        
+                        for (const key in obj) {
+                            if (typeof obj[key] === 'object' && obj[key] !== null) {
+                                const foundToken = findTokenInObject(obj[key], depth + 1);
+                                if (foundToken) return foundToken;
+                            }
+                        }
+                        return null;
+                    };
+                    
+                    token = findTokenInObject(data);
+                    
+                    // 기본 사용자 데이터 구성
+                    userData = {
+                        email: email,
+                        nickname: email.split('@')[0]
+                    };
+                    
+                    // 가능한 ID 필드들 확인
+                    if (data.id) userData.id = data.id;
+                    else if (data.userId) userData.id = data.userId;
+                    else if (data.user_id) userData.id = data.user_id;
+                    else userData.id = Date.now().toString(); // 임시 ID
+                    
+                    // 프로필 이미지 필드 확인
+                    if (data.profileImage) userData.profileImage = data.profileImage;
+                    else if (data.profile_image) userData.profileImage = data.profile_image;
+                    else if (data.avatar) userData.profileImage = data.avatar;
+                }
             }
             
             // 토큰 저장
@@ -75,7 +169,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 sessionStorage.setItem('isLoggedIn', 'true');
                 sessionStorage.setItem('userEmail', email);
                 
-                return userData;
+                // 프로필 정보 요청 추가 (새로운 부분)
+                const fullUserData = await fetchUserProfile(token, userData);
+                return fullUserData;
             } else {
                 console.error('토큰을 찾을 수 없음:', data);
                 throw new Error('응답에서 토큰을 찾을 수 없습니다');
@@ -104,10 +200,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     return user;
                 }
-                return null;
+                throw new Error('이메일 또는 비밀번호가 올바르지 않습니다.');
             } catch (localError) {
                 console.error('localStorage 로그인 검증 중 에러 발생:', localError);
-                throw localError;
+                throw error; // 원래 API 오류를 그대로 던짐
             }
         }
     }
@@ -162,6 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loginForm.addEventListener('submit', async function(event) {
         event.preventDefault();
         loginButton.disabled = true;
+        loginButton.textContent = '로그인 중...'; // 로딩 상태 표시
 
         const email = emailInput.value;
         const password = passwordInput.value;
@@ -177,8 +274,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (user) {
                 console.log('로그인 성공:', user);
+                
                 // 사용자 정보 로컬 스토리지에 저장
-                localStorage.setItem('currentUser', JSON.stringify(user));
+                const userToStore = {
+                    id: user.id || user.userId,
+                    email: user.email,
+                    nickname: user.nickname || user.authorName || email.split('@')[0],
+                    profileImage: user.profileImage
+                };
                 
                 // 로그인 상태 확인
                 const token = sessionStorage.getItem('token');
@@ -186,31 +289,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 console.log('로그인 후 상태 확인:', {
                     token: token ? '존재함' : '없음',
-                    isLoggedIn: isLoggedIn
+                    isLoggedIn: isLoggedIn,
+                    userData: userToStore
                 });
                 
                 if (!token || !isLoggedIn) {
                     console.error('로그인은 성공했으나 인증 정보가 없습니다.');
                     alert('로그인은 성공했으나 인증 정보 저장에 문제가 발생했습니다. 다시 시도해주세요.');
                     loginButton.disabled = false;
+                    loginButton.textContent = '로그인';
                     return;
                 }
+                
+                // 최종 사용자 정보 저장
+                localStorage.setItem('currentUser', JSON.stringify(userToStore));
                 
                 // 로그인 성공 후 메인 페이지로 이동
                 alert('로그인에 성공했습니다.');
                 window.location.href = '../../post/index/index.html';
             } else {
-                console.log('로그인 실패: 사용자를 찾을 수 없음');
-                emailHelper.textContent = '* 아이디 또는 비밀번호를 확인해주세요';
+                // user가 null인 경우 처리
+                emailHelper.textContent = '* 로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.';
                 emailHelper.style.color = 'red';
-                passwordHelper.textContent = '';
                 loginButton.disabled = false;
+                loginButton.textContent = '로그인';
             }
         } catch (error) {
             console.error('로그인 처리 중 에러 발생:', error);
-            emailHelper.textContent = '* 로그인 중 오류가 발생했습니다: ' + error.message;
+            emailHelper.textContent = '* ' + (error.message || '로그인 중 오류가 발생했습니다.');
             emailHelper.style.color = 'red';
             loginButton.disabled = false;
+            loginButton.textContent = '로그인';
         }
     });
 
