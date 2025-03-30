@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 초기 로그인 체크
     if (!window.headerUtils.checkLogin()) return;
 
-    // 개선된 권한 체크 함수: 다양한 ID/이름 필드를 지원
+    // 권한 체크 함수
     function checkAuthorPermission(post, user) {
         if (!post || !user) {
             console.error('게시글 또는 사용자 정보가 없습니다.');
@@ -16,33 +16,59 @@ document.addEventListener('DOMContentLoaded', function() {
         // 게시글 작성자 ID (여러 가능한 필드 확인)
         const postUserId = post.userId || post.author_id || post.authorId || post.user_id;
         
+        // 게시글 작성자 이메일 (여러 가능한 필드 확인)
+        const postAuthorEmail = post.authorEmail || post.email || post.userEmail || post.author_email;
+        
         // 게시글 작성자 이름 (여러 가능한 필드 확인)
         const postAuthorName = post.author || post.authorName || post.author_name || post.nickname || post.username;
         
         // 현재 사용자 ID (여러 가능한 필드 확인)
         const currentUserId = user.id || user.userId || user.user_id;
         
+        // 현재 사용자 이메일
+        const currentUserEmail = user.email || user.userEmail;
+        
         // 현재 사용자 이름 (여러 가능한 필드 확인)
         const currentUserName = user.nickname || user.username || user.name || user.author || user.authorName;
         
         console.log('권한 체크 - 게시글 작성자 ID:', postUserId, typeof postUserId);
+        console.log('권한 체크 - 게시글 작성자 이메일:', postAuthorEmail);
         console.log('권한 체크 - 게시글 작성자 이름:', postAuthorName);
         console.log('권한 체크 - 현재 사용자 ID:', currentUserId, typeof currentUserId);
+        console.log('권한 체크 - 현재 사용자 이메일:', currentUserEmail);
         console.log('권한 체크 - 현재 사용자 이름:', currentUserName);
         
         // ID 일치 여부 확인 (타입 변환하여 비교)
         const idMatches = postUserId && currentUserId && 
                         (postUserId.toString() === currentUserId.toString());
         
+        // 이메일 일치 여부 확인 (새로 추가)
+        const emailMatches = postAuthorEmail && currentUserEmail && 
+                        (postAuthorEmail === currentUserEmail);
+        
         // 이름 일치 여부 확인
         const nameMatches = postAuthorName && currentUserName && 
                         (postAuthorName === currentUserName);
         
         console.log('권한 체크 - ID 일치 여부:', idMatches);
+        console.log('권한 체크 - 이메일 일치 여부:', emailMatches);
         console.log('권한 체크 - 이름 일치 여부:', nameMatches);
         
-        // ID나 이름 중 하나라도 일치하면 권한 있음
-        const isAuthor = idMatches || nameMatches;
+        // ID, 이메일, 이름 중 하나라도 일치하면 권한 있음
+        const isAuthor = idMatches || emailMatches || nameMatches;
+        
+        // 디버깅용: 모든 값 강제 로깅
+        console.log('모든 ID 값:', {
+            postId: postUserId, 
+            userId: currentUserId,
+            postEmail: postAuthorEmail,
+            userEmail: currentUserEmail,
+            postName: postAuthorName,
+            userName: currentUserName
+        });
+        
+        // 테스트를 위해 항상 true 반환 (임시)
+        // const isAuthor = true;
         
         console.log('권한 체크 결과:', isAuthor ? '작성자 맞음' : '작성자 아님');
         return isAuthor;
