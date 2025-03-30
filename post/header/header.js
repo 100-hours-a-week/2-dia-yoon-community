@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("헤더 JS 로딩 시작");
+    
     // 로그인 체크 함수
     function checkLogin() {
         const isLoggedIn = sessionStorage.getItem('isLoggedIn');
@@ -49,113 +51,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 사용자 정보 표시 함수 - 개선된 버전
+    // 사용자 정보 표시 함수 - 가장 단순한 버전
     function displayUserInfo() {
-        console.log('사용자 정보 표시 시도');
-        
         try {
-            // localStorage에서 사용자 정보 가져오기
-            const userDataStr = localStorage.getItem('currentUser');
-            console.log('localStorage currentUser:', userDataStr);
-            
-            if (!userDataStr) {
+            // 현재 사용자 정보 가져오기
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
                 console.error('사용자 데이터가 localStorage에 없음');
                 return;
             }
             
-            const userData = JSON.parse(userDataStr);
-            console.log('파싱된 사용자 데이터:', userData);
+            const currentUser = JSON.parse(currentUserStr);
+            console.log('사용자 데이터:', currentUser);
             
             // 프로필 이미지 요소 찾기
             const profileImg = document.getElementById('profileDropdown');
-            
             if (!profileImg) {
                 console.error('프로필 이미지 요소를 찾을 수 없음');
                 return;
             }
             
-            // 루트 경로 계산 - 현재 페이지 깊이에 따라 상대 경로 조정
-            const currentPath = window.location.pathname;
-            const pathSegments = currentPath.split('/').filter(segment => segment.length > 0);
-            
-            // 절대 경로로 변환하여 계산
-            let rootPath;
-            
-            // 주요 폴더 구조에 따라 경로 설정
-            if (currentPath.includes('/post/index/')) {
-                rootPath = '../..'; // /post/index/ 폴더에서는 두 단계 위로
-            } else if (currentPath.includes('/post/detail/') || 
-                       currentPath.includes('/post/modify/') || 
-                       currentPath.includes('/post/write/')) {
-                rootPath = '../..'; // /post/detail/, /post/modify/, /post/write/ 폴더에서도 두 단계 위로
-            } else if (currentPath.includes('/auth/')) {
-                rootPath = '../..'; // /auth/ 하위 폴더에서도 두 단계 위로
+            // 프로필 이미지 설정 (단순 직접 할당)
+            if (currentUser.profileImage) {
+                profileImg.src = currentUser.profileImage;
+                console.log('프로필 이미지 설정됨:', currentUser.profileImage.substring(0, 50) + '...');
             } else {
-                // 기본 경로 계산(다른 페이지용)
-                const depth = pathSegments.length - 1; // -1은 파일명을 제외
-                rootPath = '../'.repeat(depth);
+                profileImg.src = '../../images/default-profile.png';
+                console.log('기본 프로필 이미지 설정');
             }
             
-            console.log('현재 경로:', currentPath, '폴더 구조 기반 루트 경로:', rootPath);
-            
-            // 이미지 경로 설정 로직
-            let authorImg;
-            if (userData.profileImage) {
-                const imageSource = userData.profileImage;
-                // Base64 이미지 데이터인 경우 직접 사용
-                if (imageSource.startsWith('data:image/')) {
-                    authorImg = imageSource;
-                    console.log('Base64 이미지 사용');
-                }
-                // 긴 Base64 문자열인 경우(data:image/ 없이 시작하는 경우)
-                else if (imageSource.length > 100 && (imageSource.startsWith('/9j/') || imageSource.startsWith('/4AA'))) {
-                    authorImg = `data:image/jpeg;base64,${imageSource}`;
-                    console.log('Base64 문자열을 이미지로 변환');
-                }
-                // 절대 경로인 경우 그대로 사용
-                else if (imageSource.startsWith('/')) {
-                    authorImg = imageSource;
-                    console.log('절대 경로 이미지 사용');
-                }
-                // 상대 경로나 파일명인 경우
-                else {
-                    // 현재 페이지 깊이에 따라 상대 경로 조정
-                    const fileName = imageSource.split('/').pop();
-                    // 절대 경로로 처리
-                    authorImg = `${rootPath}/images/${fileName}`;
-                    console.log('상대 경로로 이미지 설정:', authorImg);
-                }
-            } else {
-                // 이미지 정보가 없으면 기본 이미지
-                authorImg = `${rootPath}/images/default-profile.png`;
-                console.log('기본 이미지 사용:', authorImg);
-            }
-            
-            console.log('최종 이미지 경로:', authorImg);
-            
-            // 이미지 소스 설정
-            profileImg.src = authorImg;
-            
-            // 이미지 로딩 실패 시 기본 이미지로 대체
-            profileImg.onerror = () => {
-                console.error('이미지 로드 실패:', profileImg.src);
-                profileImg.src = `${rootPath}/images/default-profile.png`;
-                
-                // 두 번째 시도도 실패하면 절대 경로로 시도
-                profileImg.onerror = () => {
-                    console.error('기본 이미지도 로드 실패. 절대 경로 시도:', profileImg.src);
-                    profileImg.src = '/images/default-profile.png';
-                };
+            // 이미지 로드 오류 시 기본 이미지로 대체
+            profileImg.onerror = function() {
+                console.error('이미지 로드 실패');
+                this.src = '../../images/default-profile.png';
+                this.onerror = null; // 무한 로드 방지
             };
         } catch (error) {
-            console.error('프로필 표시 중 오류:', error);
-            // 에러 발생 시 기본 이미지 경로 계산 - 절대 경로 사용
-            const rootPath = '/images'; // 웹사이트 루트 기준 절대 경로 사용
-            
-            const profileImg = document.getElementById('profileDropdown');
-            if (profileImg) {
-                profileImg.src = `/images/default-profile.png`;
-            }
+            console.error('프로필 표시 오류:', error);
         }
     }
 
@@ -229,8 +161,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 헤더 초기화 함수 - 이 함수를 호출하여 헤더를 초기화
     function initHeader() {
-        // 헤더 HTML 삽입 (필요한 경우)
-        // 대부분의 페이지에서는 HTML이 이미 있으므로 주석 처리
+        console.log("헤더 초기화 시작");
+        // 헤더 HTML 삽입
         insertHeaderHTML();
         
         // 이벤트 리스너 설정
@@ -238,6 +170,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 사용자 정보 표시
         displayUserInfo();
+        
+        // 지연 로드 추가 (페이지가 완전히 로드된 후 다시 시도)
+        setTimeout(function() {
+            console.log("페이지 로드 후 프로필 다시 시도");
+            displayUserInfo();
+        }, 500);
     }
 
     // 헤더 초기화 실행
@@ -247,6 +185,15 @@ document.addEventListener('DOMContentLoaded', function() {
     window.headerUtils = {
         checkLogin: checkLogin,
         displayUserInfo: displayUserInfo,
-        initHeader : initHeader
+        initHeader: initHeader,
+        // 외부에서 호출할 수 있는 프로필 갱신 함수 추가
+        refreshProfile: function() {
+            console.log("프로필 새로고침 함수 호출됨");
+            displayUserInfo();
+            // 지연 후 다시 시도 (이미지 로드 문제 해결을 위해)
+            setTimeout(displayUserInfo, 300);
+        }
     };
+    
+    console.log("헤더 JS 로딩 완료");
 });
